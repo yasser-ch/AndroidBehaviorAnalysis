@@ -1,0 +1,21 @@
+# Python
+profiler/venv/
+profiler/__pycache__/
+profiler/*.pyc
+*.pyc
+__pycache__/
+
+# Android Studio
+.idea/
+*.iml
+local.properties
+.gradle/
+build/
+app/build/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

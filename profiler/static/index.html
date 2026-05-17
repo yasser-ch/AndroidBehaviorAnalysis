@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BehaviorProfiler — SOC Intelligence</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --navy:        #0f1e3c; --navy-mid:    #1a3056; --navy-light:  #2a4a7f;
+      --accent:      #1d4ed8; --accent-lite: #3b82f6;
+      --red:         #dc2626; --red-lite:    #fef2f2;
+      --amber:       #d97706; --amber-lite:  #fffbeb;
+      --green:       #059669; --green-lite:  #f0fdf4;
+      --white:       #ffffff;
+      --gray-50:     #f8fafc; --gray-100:    #f1f5f9; --gray-200:    #e2e8f0;
+      --gray-300:    #cbd5e1; --gray-400:    #94a3b8; --gray-500:    #64748b;
+      --gray-600:    #475569; --gray-700:    #334155; --gray-800:    #1e293b;
+      --text:        #0f172a; --border:      #e2e8f0;
+      --shadow-sm:   0 1px 3px rgba(15,30,60,.08), 0 1px 2px rgba(15,30,60,.04);
+      --radius-md:   6px; --radius-lg:   10px;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--gray-50); color: var(--text); font-size: 13px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+    .shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+
+    /* Sidebar */
+    .sidebar { background: var(--navy); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; overflow: hidden; }
+    .sidebar-brand { padding: 20px 20px 18px; border-bottom: 1px solid rgba(255,255,255,.08); margin-bottom: 8px; }
+    .brand-logo { display: flex; align-items: center; gap: 10px; margin-bottom: 2px; }
+    .brand-icon { width: 28px; height: 28px; background: var(--accent); border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 14px; flex-shrink: 0; color: #fff;}
+    .brand-name { font-family: 'DM Serif Display', serif; font-size: 16px; color: #fff; letter-spacing: -.2px; }
+    .brand-sub { font-size: 10px; color: rgba(255,255,255,.35); letter-spacing: .06em; text-transform: uppercase; margin-top: 2px; }
+    .sidebar-section-label { padding: 14px 20px 4px; font-size: 9px; font-weight: 600; color: rgba(255,255,255,.25); letter-spacing: .1em; text-transform: uppercase; }
+    .nav-item { margin: 1px 10px; padding: 8px 12px; border-radius: var(--radius-md); cursor: pointer; color: rgba(255,255,255,.55); font-size: 13px; display: flex; align-items: center; gap: 10px; transition: all .15s; }
+    .nav-item:hover { background: rgba(255,255,255,.06); color: rgba(255,255,255,.85); }
+    .nav-item.active { background: rgba(29,78,216,.35); color: #fff; font-weight: 500; }
+    .nav-badge { margin-left: auto; background: var(--red); color: #fff; font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 10px; min-width: 18px; text-align: center; }
+    .sidebar-status { margin: auto 0 0; padding: 14px 20px; border-top: 1px solid rgba(255,255,255,.06); display: flex; flex-direction: column; gap: 6px; }
+    .status-row { display: flex; align-items: center; justify-content: space-between; font-size: 11px; }
+    .status-label { color: rgba(255,255,255,.3); }
+    .status-val { font-family: 'DM Mono', monospace; font-size: 10px; }
+    .status-val.ok { color: #34d399; } .status-val.warn { color: #fbbf24; } .status-val.error { color: #f87171; }
+
+    /* Main & Topbar */
+    .main { display: flex; flex-direction: column; min-height: 100vh; }
+    .topbar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 28px; height: 52px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; box-shadow: var(--shadow-sm); }
+    .topbar-left { display: flex; align-items: center; gap: 16px; }
+    .topbar-title { font-size: 15px; font-weight: 600; color: var(--text); }
+    .topbar-sub { font-size: 11px; color: var(--gray-400); font-family: 'DM Mono', monospace; }
+
+    /* Threat bar */
+    .threat-bar { background: var(--white); border-bottom: 1px solid var(--border); padding: 0 28px; height: 40px; display: flex; align-items: center; gap: 24px; }
+    .threat-label { font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--gray-400); }
+    .threat-levels { display: flex; gap: 2px; flex: 1; max-width: 320px; height: 6px; }
+    .threat-seg { flex: 1; border-radius: 1px; background: var(--gray-200); transition: background .4s; }
+    .threat-seg.active-low { background: #34d399; }
+    .threat-seg.active-medium { background: #fbbf24; }
+    .threat-seg.active-high { background: #ea580c; }
+    .threat-seg.active-critical { background: var(--red); }
+    .threat-name { font-size: 12px; font-weight: 600; min-width: 80px; }
+    .threat-name.low { color: var(--green); }
+    .threat-name.medium { color: var(--amber); }
+    .threat-name.high { color: #ea580c; }
+    .threat-name.critical { color: var(--red); }
+    .threat-score { font-family: 'DM Mono', monospace; font-size: 22px; font-weight: 500; color: var(--text); min-width: 40px; }
+
+    /* Buttons */
+    .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; font-size: 12px; font-weight: 500; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--white); color: var(--gray-600); cursor: pointer; transition: all .15s; }
+    .btn:hover { background: var(--gray-50); border-color: var(--gray-300); }
+    .btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+    .btn-primary:hover { background: #1e40af; border-color: #1e40af; }
+    .btn-sm { padding: 5px 10px; font-size: 11px; }
+
+    /* Content & Cards */
+    .content { padding: 24px 28px; flex: 1; }
+    .view { display: none; }
+    .view.active { display: block; animation: fadein .2s ease; }
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); margin-bottom: 16px; overflow: hidden; }
+    .card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+    .card-title { font-size: 11px; font-weight: 600; text-transform: uppercase; color: var(--gray-500); }
+    .card-body { padding: 16px 18px; }
+    
+    .metrics-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; margin-bottom: 20px; }
+    .metric-card { background: var(--white); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; box-shadow: var(--shadow-sm); position: relative; }
+    .metric-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: var(--gray-200); }
+    .metric-label { font-size: 10px; font-weight: 600; text-transform: uppercase; color: var(--gray-400); margin-bottom: 8px; }
+    .metric-value { font-family: 'DM Mono', monospace; font-size: 28px; font-weight: 500; color: var(--text); line-height: 1; margin-bottom: 6px; }
+
+    /* Charts */
+    .charts-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
+    .chart-wrap { height: 110px; position: relative; border-radius: 4px; transition: background-color 0.4s ease; }
+    .chart-wrap.zone-critical { background-color: rgba(220, 38, 38, 0.08); }
+    .chart-wrap.zone-high { background-color: rgba(234, 88, 12, 0.08); }
+    .chart-wrap.zone-medium { background-color: rgba(217, 119, 6, 0.08); }
+
+    /* Incident Rendering (Kill Chain) */
+    .anomaly-list { display: flex; flex-direction: column; max-height: 600px; overflow-y: auto; }
+    .anomaly-container { border-bottom: 1px solid var(--gray-100); }
+    .anomaly-item { display: flex; align-items: flex-start; gap: 12px; padding: 16px 18px; background: #fff; cursor: pointer; transition: background .15s; position: relative; }
+    .anomaly-item:hover { background: var(--gray-50); }
+    
+    /* Stateful Triage Styles */
+    .triage-false_positive .anomaly-item { opacity: 0.5; filter: grayscale(100%); }
+    .triage-mitigated .anomaly-item { background: var(--green-lite); border-left: 3px solid var(--green); }
+    
+    .mitre-badge { font-family: 'DM Mono', monospace; font-size: 10px; background: var(--gray-800); color: #fff; padding: 2px 6px; border-radius: 3px; margin-left: 8px; }
+    .triage-actions { margin-top: 10px; display: flex; gap: 6px; }
+    
+    /* Locked-in Button Styles */
+    .btn-triage { padding: 4px 10px; font-size: 10px; font-weight: 600; border: 1px solid var(--border); border-radius: 4px; cursor: pointer; background: #fff; color: var(--gray-600); transition: all 0.2s;}
+    .btn-triage:hover:not(:disabled) { background: var(--gray-100); }
+    .btn-triage:disabled { opacity: 0.4; cursor: not-allowed; }
+    
+    .btn-triage.active-ack { background: var(--accent-lite); color: #fff; border-color: var(--accent-lite); opacity: 1;}
+    .btn-triage.active-mitigated { background: var(--green); color: #fff; border-color: var(--green); opacity: 1;}
+    .btn-triage.active-fp { background: var(--gray-500); color: #fff; border-color: var(--gray-500); opacity: 1;}
+
+    .anomaly-sev-bar { width: 3px; border-radius: 2px; align-self: stretch; min-height: 40px; flex-shrink: 0; }
+    .sev-critical { background: var(--red); }
+    .sev-high { background: #ea580c; }
+    .sev-medium { background: var(--amber); }
+
+    .anomaly-score-box { width: 40px; height: 40px; border-radius: var(--radius-md); display: flex; align-items: center; justify-content: center; font-family: 'DM Mono', monospace; font-size: 14px; font-weight: 500; flex-shrink: 0; }
+    .score-critical { background: var(--red-lite); color: var(--red); }
+    .score-high { background: #ffedd5; color: #ea580c; }
+    .score-medium { background: var(--amber-lite); color: var(--amber); }
+    
+    .anomaly-info { flex: 1; min-width: 0; }
+    .anomaly-name { font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 2px; display: flex; align-items: center; }
+    .anomaly-desc { font-size: 11px; color: var(--gray-500); }
+    .anomaly-meta { font-size: 10px; color: var(--gray-400); margin-top: 3px; font-family: 'DM Mono', monospace; }
+
+    /* Expandable Drawer */
+    .anomaly-drawer { display: none; background: #fafafa; padding: 16px 18px 16px 64px; border-top: 1px dashed var(--border); font-size: 11px; }
+    .anomaly-drawer.open { display: block; animation: fadein 0.2s ease; }
+    .drawer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .drawer-title { font-weight: 700; color: var(--gray-500); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.05em; font-size: 9px; }
+    .drawer-pre { background: var(--white); border: 1px solid var(--border); border-radius: 4px; padding: 10px; font-family: 'DM Mono', monospace; color: var(--gray-600); white-space: pre-wrap; margin: 0;}
+
+    /* AI Box */
+    .ai-panel { background: var(--navy); border-radius: var(--radius-lg); overflow: hidden; }
+    .ai-panel-header { padding: 12px 18px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,.08); }
+    .ai-panel-title { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.5); text-transform: uppercase; letter-spacing: 0.08em;}
+    .ai-body { padding: 18px; font-size: 12px; color: rgba(255,255,255,.65); line-height: 1.8; white-space: pre-wrap; min-height: 100px; }
+
+    /* Rich AI sections */
+    .ai-section { padding: 16px 18px; border-bottom: 1px solid rgba(255,255,255,.06); }
+    .ai-sec-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .09em; color: rgba(255,255,255,.4); margin-bottom: 8px; display: flex; align-items: center; }
+    .ai-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; margin-right: 8px; flex-shrink: 0; }
+    .ai-sec-body { font-size: 13px; color: rgba(255,255,255,.75); line-height: 1.7; }
+    .ai-chip { display: inline-block; font-family: 'DM Mono', monospace; font-size: 10px; padding: 3px 8px; border-radius: 4px; font-weight: 500; }
+    .ai-chip-mitre { background: rgba(59,130,246,.18); color: #93c5fd; border: 1px solid rgba(59,130,246,.25); }
+    .ai-chip-ioc { background: rgba(217,119,6,.15); color: #fbbf24; border: 1px solid rgba(217,119,6,.2); }
+    .ai-remed-step { display: flex; gap: 10px; align-items: flex-start; }
+    .ai-remed-num { width: 22px; height: 22px; border-radius: 50%; background: rgba(5,150,105,.2); border: 1px solid rgba(5,150,105,.35); color: #34d399; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+    .ai-remed-text { font-size: 13px; color: rgba(255,255,255,.72); line-height: 1.6; }
+
+    /* Chat panel — conversational */
+    .chat-shell { display: flex; flex-direction: column; height: calc(100vh - 160px); background: var(--navy); border-radius: var(--radius-lg); overflow: hidden; }
+    .chat-header { padding: 14px 18px; border-bottom: 1px solid rgba(255,255,255,.08); display:flex; align-items:center; justify-content:space-between; background: rgba(0,0,0,.15); }
+    .chat-messages { flex: 1; overflow-y: auto; padding: 20px 18px; display: flex; flex-direction: column; gap: 18px; scroll-behavior: smooth; }
+    .chat-messages::-webkit-scrollbar { width: 4px; }
+    .chat-messages::-webkit-scrollbar-thumb { background: rgba(255,255,255,.1); border-radius: 2px; }
+    .chat-msg { display: flex; flex-direction: column; }
+    .chat-msg.user { align-items: flex-end; }
+    .chat-msg.assistant { align-items: flex-start; }
+    .chat-bubble { max-width: 88%; padding: 12px 16px; border-radius: 12px; font-size: 13px; line-height: 1.7; }
+    .chat-msg.user .chat-bubble { background: var(--accent); color: #fff; border-radius: 12px 12px 3px 12px; }
+    .chat-msg.assistant .chat-bubble { background: rgba(255,255,255,.07); color: rgba(255,255,255,.82); border: 1px solid rgba(255,255,255,.09); border-radius: 3px 12px 12px 12px; }
+    .chat-sender { font-size: 10px; font-weight: 600; color: rgba(255,255,255,.35); text-transform: uppercase; letter-spacing: .07em; margin-bottom: 5px; }
+    .chat-text { white-space: pre-wrap; }
+    .chat-text strong { color: rgba(255,255,255,.95); font-weight: 600; }
+    .chat-text code { font-family: 'DM Mono', monospace; font-size: 11px; background: rgba(255,255,255,.1); padding: 1px 5px; border-radius: 3px; }
+    .chat-text .mitre-inline { font-family: 'DM Mono', monospace; font-size: 10px; background: rgba(59,130,246,.2); color: #93c5fd; padding: 1px 6px; border-radius: 3px; margin: 0 2px; }
+    .typing-dots { display:inline-flex; gap:4px; align-items:center; padding: 2px 0; }
+    .typing-dots span { width:6px;height:6px;border-radius:50%;background:rgba(255,255,255,.35);animation:typedot 1.2s infinite; }
+    .typing-dots span:nth-child(2){animation-delay:.2s}
+    .typing-dots span:nth-child(3){animation-delay:.4s}
+    @keyframes typedot{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+    .chat-suggestions { display:flex; flex-wrap:wrap; gap:6px; padding: 10px 18px; border-top: 1px solid rgba(255,255,255,.05); }
+    .chat-sugg { background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.09); border-radius: 20px; color: rgba(255,255,255,.5); font-size: 11px; padding: 5px 13px; cursor: pointer; transition: all .15s; font-family: 'DM Sans', sans-serif; white-space: nowrap; }
+    .chat-sugg:hover { background: rgba(255,255,255,.11); color: rgba(255,255,255,.85); border-color: rgba(255,255,255,.18); }
+    .chat-compose { padding: 12px 16px 14px; border-top: 1px solid rgba(255,255,255,.08); background: rgba(0,0,0,.1); }
+    .chat-compose textarea { width:100%; background: rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.12); border-radius:8px; padding:10px 14px; color:#fff; font-size:13px; font-family:'DM Sans',sans-serif; outline:none; resize:none; line-height:1.5; min-height:42px; max-height:140px; transition: border-color .15s; }
+    .chat-compose textarea:focus { border-color: rgba(59,130,246,.5); }
+    .chat-compose textarea::placeholder { color: rgba(255,255,255,.25); }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+    /* Report preview */
+    .rpt-section { margin-bottom: 28px; }
+    .rpt-section-title { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--gray-400); border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-bottom: 14px; }
+    .rpt-grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; }
+    .rpt-grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+    .rpt-stat { background: var(--gray-50); border: 1px solid var(--border); border-radius: 8px; padding: 14px; text-align: center; }
+    .rpt-stat-val { font-family: 'DM Mono', monospace; font-size: 26px; font-weight: 500; margin-bottom: 3px; }
+    .rpt-stat-lbl { font-size: 10px; color: var(--gray-400); text-transform: uppercase; letter-spacing: .06em; }
+    .rpt-inc-card { border: 1px solid var(--border); border-radius: 8px; overflow:hidden; margin-bottom: 10px; }
+    .rpt-inc-header { display: flex; align-items: center; gap: 12px; padding: 12px 14px; background: var(--gray-50); }
+    .rpt-inc-body { padding: 12px 14px; font-size: 11px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .rpt-inc-field { display: flex; flex-direction: column; gap: 2px; }
+    .rpt-inc-label { font-size: 9px; font-weight: 600; text-transform: uppercase; letter-spacing: .07em; color: var(--gray-400); }
+    .rpt-inc-value { color: var(--gray-700); font-family: 'DM Mono', monospace; font-size: 11px; }
+    .rpt-sev-pill { font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 3px; text-transform: uppercase; }
+
+    @keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes livepulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: .5; transform: scale(.85); } }
+  </style>
+</head>
+<body>
+<div class="shell">
+
+  <nav class="sidebar">
+    <div class="sidebar-brand">
+      <div class="brand-logo"><div class="brand-icon">⬡</div><div class="brand-name">BehaviorProfiler</div></div>
+      <div class="brand-sub">SOC Intelligence</div>
+    </div>
+    <div class="sidebar-section-label">Workspace</div>
+    <div class="nav-item active" onclick="setView('dashboard',this)">▦ Dashboard</div>
+    <div class="nav-item" onclick="setView('signals',this)">⬗ Signal Feed</div>
+    <div class="nav-item" onclick="setView('anomalies',this)">◈ Kill Chain & Alerts <span class="nav-badge" id="nav-anomaly-count" style="display:none">0</span></div>
+    <div class="nav-item" onclick="setView('ai',this)">◎ AI Analysis</div>
+    <div class="nav-item" onclick="setView('chat',this)">⌘ SOC Chatbox</div>
+    <div class="nav-item" onclick="setView('report',this)">◻ Audit Report</div>
+
+    <div class="sidebar-status">
+      <div class="status-row"><span class="status-label">Server</span><span class="status-val error" id="server-status">connecting</span></div>
+      <div class="status-row"><span class="status-label">Session</span><span class="status-val ok" id="session-timer">00:00</span></div>
+    </div>
+  </nav>
+
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left"><div class="topbar-title" id="topbar-title">Dashboard</div></div>
+      <div style="display:flex;align-items:center;gap:12px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--green);font-weight:500">
+          <div style="width:7px;height:7px;border-radius:50%;background:var(--green);animation:livepulse 2s infinite"></div>
+          LIVE
+        </div>
+        <button class="btn btn-primary btn-sm" onclick="runAI()">Run AI Analysis</button>
+        <button class="btn btn-sm" onclick="exportReport()">Export Report</button>
+      </div>
+    </div>
+
+    <div class="threat-bar">
+      <div class="threat-label">Global Risk</div>
+      <div class="threat-levels" id="threat-levels">
+        <div class="threat-seg" id="ts1"></div><div class="threat-seg" id="ts2"></div><div class="threat-seg" id="ts3"></div>
+        <div class="threat-seg" id="ts4"></div><div class="threat-seg" id="ts5"></div><div class="threat-seg" id="ts6"></div>
+        <div class="threat-seg" id="ts7"></div><div class="threat-seg" id="ts8"></div><div class="threat-seg" id="ts9"></div><div class="threat-seg" id="ts10"></div>
+      </div>
+      <div class="threat-name low" id="threat-name">NORMAL</div>
+      <div class="threat-score" id="threat-score">0</div>
+    </div>
+
+    <div class="content">
+      <div class="view active" id="view-dashboard">
+        <div class="metrics-row">
+          <div class="metric-card"><div class="metric-label">Requests / min</div><div class="metric-value" id="m-rpm">0</div></div>
+          <div class="metric-card"><div class="metric-label">Error Rate</div><div class="metric-value" id="m-err">0%</div></div>
+          <div class="metric-card"><div class="metric-label">Avg Latency</div><div class="metric-value" id="m-lat">0ms</div></div>
+          <div class="metric-card"><div class="metric-label">Anomaly Score</div><div class="metric-value" id="m-score">0</div></div>
+        </div>
+
+        <div class="charts-grid">
+          <div class="card"><div class="card-header"><div class="card-title">Request Rate (rpm)</div></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-rpm"></canvas></div></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">Error Rate (%)</div></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-err"></canvas></div></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">Avg Latency (ms)</div></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-lat"></canvas></div></div></div>
+          <div class="card"><div class="card-header"><div class="card-title">Crashes & Retries / s</div></div><div class="card-body"><div class="chart-wrap"><canvas id="chart-crash"></canvas></div></div></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-signals">
+        <div class="card"><div class="card-header"><div class="card-title">Signal Snapshot</div></div><div class="card-body"><pre id="signal-raw" style="font-family:monospace;font-size:11px;color:var(--gray-600);"></pre></div></div>
+      </div>
+
+      <div class="view" id="view-anomalies">
+        <div class="card">
+          <div class="card-header"><div class="card-title">Incident Timeline</div></div>
+          <div class="anomaly-list" id="anomaly-list-full"></div>
+        </div>
+      </div>
+
+      <div class="view" id="view-ai">
+        <div class="ai-panel" id="ai-rich-panel" style="display:none">
+          <div class="ai-panel-header">
+            <div class="ai-panel-title">◎ SOC Tier 2 Analysis</div>
+            <div id="ai-model-tag" style="font-size:10px;font-family:'DM Mono',monospace;color:rgba(255,255,255,.3);background:rgba(255,255,255,.05);padding:3px 8px;border-radius:4px;"></div>
+          </div>
+          <div class="ai-section" id="ai-sec-root">
+            <div class="ai-sec-label"><span class="ai-dot" style="background:#dc2626"></span>Root Cause &amp; MITRE</div>
+            <div class="ai-sec-body" id="ai-root-text">—</div>
+            <div id="ai-mitre-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+          </div>
+          <div class="ai-section" id="ai-sec-ioc">
+            <div class="ai-sec-label"><span class="ai-dot" style="background:#d97706"></span>IOC Analysis</div>
+            <div class="ai-sec-body" id="ai-ioc-text">—</div>
+            <div id="ai-ioc-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;"></div>
+          </div>
+          <div class="ai-section" id="ai-sec-remed">
+            <div class="ai-sec-label"><span class="ai-dot" style="background:#059669"></span>Remediation Steps</div>
+            <div id="ai-remed-steps" style="display:flex;flex-direction:column;gap:8px;margin-top:4px;"></div>
+          </div>
+          <div style="padding:10px 18px;border-top:1px solid rgba(255,255,255,.06)">
+            <span onclick="toggleRawAI()" style="font-size:10px;color:rgba(255,255,255,.3);cursor:pointer;text-transform:uppercase;letter-spacing:.07em">▸ Show raw output</span>
+          </div>
+          <div id="ai-raw-block" style="display:none;padding:0 18px 16px">
+            <pre id="ai-output-full" style="font-size:11px;color:rgba(255,255,255,.45);font-family:'DM Mono',monospace;white-space:pre-wrap;line-height:1.7;margin:0;"></pre>
+          </div>
+        </div>
+        <div class="ai-panel" id="ai-idle-panel">
+          <div class="ai-panel-header"><div class="ai-panel-title">◎ SOC Tier 2 Analysis</div></div>
+          <div class="ai-body" id="ai-stream-output" style="font-family:'DM Mono',monospace;font-size:11px;line-height:1.8">Run analysis to generate AI-powered context.</div>
+        </div>
+      </div>
+
+      <div class="view" id="view-chat">
+        <div class="chat-shell">
+          <div class="chat-header">
+            <div style="display:flex;align-items:center;gap:10px">
+              <div style="width:32px;height:32px;border-radius:50%;background:rgba(59,130,246,.2);border:1px solid rgba(59,130,246,.3);display:flex;align-items:center;justify-content:center;font-size:16px;">◎</div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#fff;">SOC Intelligence Assistant</div>
+                <div id="chat-model-line" style="font-size:10px;color:rgba(255,255,255,.35);font-family:'DM Mono',monospace;">Connecting to Ollama...</div>
+              </div>
+            </div>
+            <button onclick="clearChat()" style="background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:6px;color:rgba(255,255,255,.4);font-size:11px;padding:5px 12px;cursor:pointer;">Clear</button>
+          </div>
+
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-msg assistant">
+              <div class="chat-bubble">
+                <div class="chat-sender">SOC Assistant</div>
+                <div class="chat-text">Hey! I'm your local SOC analyst, running entirely on your RTX 4050 via Ollama — no data leaves your machine.<br><br>
+                I have live access to your BehaviorProfiler session: open incidents, signal telemetry, IOCs, MITRE mappings, and triage status. You can talk to me freely — ask follow-up questions, challenge my analysis, dig into specific incidents, or just think out loud about what you're seeing.<br><br>
+                What's on your mind?</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="chat-suggestions" id="chat-suggestions">
+            <button class="chat-sugg" onclick="sendQuick(`Walk me through what's happening right now — any active threats?`)">Walk me through active threats</button>
+            <button class="chat-sugg" onclick="sendQuick(`Explain the MITRE techniques mapped to current incidents in plain English`)">Explain MITRE techniques</button>
+            <button class="chat-sugg" onclick="sendQuick(`What do the IOCs tell us? Could this be a real attack or a dev bug?`)">IOCs: attack or bug?</button>
+            <button class="chat-sugg" onclick="sendQuick(`Give me a realistic remediation plan I can actually action`)">Actionable remediation plan</button>
+            <button class="chat-sugg" onclick="sendQuick(`How confident are you in this detection? What could be a false positive?`)">False positive analysis</button>
+            <button class="chat-sugg" onclick="sendQuick(`Compare what's happening now to typical Android malware patterns`)">Compare to malware patterns</button>
+          </div>
+
+          <div class="chat-compose">
+            <textarea id="chat-input" placeholder="Ask anything — threat analysis, MITRE explanations, remediation ideas, or just think out loud..." rows="1"
+              onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat();}"
+              oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,140)+'px'"></textarea>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:8px">
+              <span style="font-size:10px;color:rgba(255,255,255,.2);">Enter to send · Shift+Enter for new line</span>
+              <button onclick="sendChat()" id="chat-send-btn" style="background:var(--accent);border:none;border-radius:6px;padding:7px 18px;color:#fff;font-size:12px;font-weight:600;cursor:pointer;">Send</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="view" id="view-report">
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">Audit Report Preview</div>
+            <div style="display:flex;gap:8px">
+              <button class="btn btn-sm" onclick="exportReport()">Export HTML</button>
+            </div>
+          </div>
+          <div class="card-body" id="report-summary"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'http://localhost:5000/api';
+
+let sessionStart  = Date.now();
+let incidentCache = [];
+let aiRunning     = false;
+
+const mkChart = (id, color) => new Chart(document.getElementById(id), { type: 'line', data: { labels: Array(60).fill(''), datasets: [{ data: Array(60).fill(0), borderColor: color, backgroundColor: color+'18', borderWidth: 1.5, pointRadius: 0, fill: true, tension: 0.4 }] }, options: { animation: false, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: true, beginAtZero: true, ticks: {font: {family:'DM Mono', size:9}, color:'#94a3b8'}, grid:{color:'#f1f5f9'} } } }});
+const charts = { rpm: mkChart('chart-rpm','#1d4ed8'), err: mkChart('chart-err','#dc2626'), lat: mkChart('chart-lat','#d97706'), crash: mkChart('chart-crash','#7c3aed') };
+
+function pushChart(chart, value) {
+  chart.data.datasets[0].data.push(value); chart.data.labels.push('');
+  if (chart.data.datasets[0].data.length > 60) { chart.data.datasets[0].data.shift(); chart.data.labels.shift(); }
+  chart.update('none');
+}
+
+setInterval(() => {
+  const s = Math.floor((Date.now() - sessionStart) / 1000);
+  document.getElementById('session-timer').textContent = `${String(Math.floor(s/60)).padStart(2,'0')}:${String(s%60).padStart(2,'0')}`;
+}, 1000);
+
+async function poll() {
+  try {
+    const [sigR, incR] = await Promise.all([ fetch(`${API}/signals/current`), fetch(`${API}/incidents`) ]);
+    const signals = await sigR.json();
+    incidentCache = await incR.json();
+    
+    pushChart(charts.rpm, signals.rpm || 0); pushChart(charts.err, signals.error_rate || 0);
+    pushChart(charts.lat, signals.avg_latency || 0); pushChart(charts.crash, (signals.crash_count || 0) + (signals.retry_count || 0));
+    
+    document.getElementById('m-rpm').textContent = Math.round(signals.rpm||0);
+    document.getElementById('m-err').textContent = (signals.error_rate||0).toFixed(1)+'%';
+    document.getElementById('m-lat').textContent = Math.round(signals.avg_latency||0)+'ms';
+    // Use the live anomaly score from the detector, not the incident-count-based risk score
+    document.getElementById('m-score').textContent = Math.round(signals.anomaly_score||0);
+    document.getElementById('signal-raw').textContent = JSON.stringify(signals, null, 2);
+    document.getElementById('server-status').textContent = 'online';
+    document.getElementById('server-status').className = 'status-val ok';
+
+    updateThreatAndLists();
+  } catch(e) { document.getElementById('server-status').textContent = 'offline'; document.getElementById('server-status').className = 'status-val error'; }
+}
+setInterval(poll, 2000); poll();
+
+function toggleDrawer(id) {
+  const el = document.getElementById('drawer-' + id);
+  if(el) el.classList.toggle('open');
+}
+
+async function triageIncident(event, id, status) {
+  event.stopPropagation(); // prevent opening the drawer when clicking buttons
+  await fetch(`${API}/incidents/${id}/triage`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({status}) });
+  poll(); // Immediately refresh the UI
+}
+
+function updateThreatAndLists() {
+  // Live score = OPEN incidents only (non-false-positive)
+  // Closed incidents must NOT keep the risk bar elevated after anomalies stop
+  const openActive = incidentCache.filter(i => i.status === 'open' && i.triage_status !== 'false_positive');
+  const crit = openActive.filter(i => i.severity === 'critical').length;
+  const high = openActive.filter(i => i.severity === 'high').length;
+  const med  = openActive.filter(i => i.severity === 'medium').length;
+  
+  // Score proportional to open severity — resets to 0 when all incidents close
+  const baseScore = (crit * 40) + (high * 25) + (med * 10);
+  let riskScore = Math.min(baseScore, 100);
+  if (crit > 0 && riskScore < 85) riskScore = 85;
+  if (high > 0 && riskScore < 65) riskScore = 65;
+  if (med  > 0 && riskScore < 40) riskScore = 40;
+
+  document.getElementById('threat-score').textContent = riskScore;
+  // m-score is updated from signals.anomaly_score in the poll() function
+
+  // Nav badge — ALL non-false-positive incidents (open + closed) for awareness
+  const activeCount = incidentCache.filter(i => i.triage_status !== 'false_positive').length;
+  const nb = document.getElementById('nav-anomaly-count');
+  nb.style.display = activeCount > 0 ? 'inline' : 'none';
+  nb.textContent   = activeCount;
+  const sev = riskScore >= 85 ? 'critical' : riskScore >= 65 ? 'high' : riskScore >= 40 ? 'medium' : 'low';
+  
+  const labels  = { low: 'NORMAL', medium: 'ELEVATED', high: 'HIGH', critical: 'CRITICAL' };
+  const classes = { low: 'low', medium: 'medium', high: 'high', critical: 'critical' };
+  const threatNameEl = document.getElementById('threat-name');
+  threatNameEl.textContent = labels[sev];
+  threatNameEl.className = 'threat-name ' + classes[sev];
+  
+  const chartsEl = document.querySelectorAll('.chart-wrap');
+  chartsEl.forEach(el => {
+     el.classList.remove('zone-critical', 'zone-high', 'zone-medium');
+     if (sev === 'critical') el.classList.add('zone-critical');
+     else if (sev === 'high') el.classList.add('zone-high');
+     else if (sev === 'medium') el.classList.add('zone-medium');
+  });
+
+  const filled = sev === 'critical' ? 10 : sev === 'high' ? 8 : sev === 'medium' ? 5 : sev === 'low' ? 2 : 1;
+  const cls = sev === 'critical' ? 'active-critical' : sev === 'high' ? 'active-high' : sev === 'medium' ? 'active-medium' : 'active-low';
+  for (let i = 1; i <= 10; i++) document.getElementById('ts' + i).className = 'threat-seg ' + (i <= filled ? cls : '');
+
+  // Render Kill Chain with Drawers and Locked-In Buttons
+  document.getElementById('anomaly-list-full').innerHTML = incidentCache.slice().reverse().map(inc => {
+    const timeRange = `${new Date(inc.first_seen).toLocaleTimeString()} → ${new Date(inc.last_seen).toLocaleTimeString()}`;
+    const ctxString = JSON.stringify(inc.trigger_context || {}, null, 2);
+    
+    // Triage Button States
+    const isAck = inc.triage_status === 'acknowledged';
+    const isMit = inc.triage_status === 'mitigated';
+    const isFp  = inc.triage_status === 'false_positive';
+    const anyActive = isAck || isMit || isFp;
+
+    return `
+      <div class="anomaly-container triage-${inc.triage_status}">
+        <div class="anomaly-item" onclick="toggleDrawer('${inc.incident_id}')">
+          <div class="anomaly-sev-bar sev-${inc.severity}"></div>
+          <div class="anomaly-score-box score-${inc.severity}">${Math.round(inc.peak_score)}</div>
+          <div class="anomaly-info">
+            <div class="anomaly-name">${inc.rule_name} <span class="mitre-badge">${inc.mitre_id || 'N/A'}</span></div>
+            <div class="anomaly-desc">${inc.mitre_tactic || ''} — ${inc.description}</div>
+            <div class="anomaly-meta">${timeRange} · ${inc.event_count} events</div>
+            <div class="triage-actions">
+              <button class="btn-triage ${isAck ? 'active-ack' : ''}" ${anyActive && !isAck ? 'disabled' : ''} onclick="triageIncident(event, '${inc.incident_id}', 'acknowledged')">${isAck ? '✓ ACKNOWLEDGED' : 'ACK'}</button>
+              <button class="btn-triage ${isMit ? 'active-mitigated' : ''}" ${anyActive && !isMit ? 'disabled' : ''} onclick="triageIncident(event, '${inc.incident_id}', 'mitigated')">${isMit ? '✓ MITIGATED' : 'Mitigated'}</button>
+              <button class="btn-triage ${isFp ? 'active-fp' : ''}" ${anyActive && !isFp ? 'disabled' : ''} onclick="triageIncident(event, '${inc.incident_id}', 'false_positive')">${isFp ? 'FALSE POSITIVE' : 'False Positive'}</button>
+            </div>
+          </div>
+        </div>
+        <div class="anomaly-drawer" id="drawer-${inc.incident_id}">
+          <div class="drawer-grid">
+            <div>
+              <div class="drawer-title">Extracted Indicators of Compromise (IOCs)</div>
+              <div style="margin-bottom:12px; color:var(--text)">${(inc.iocs && inc.iocs.length) ? inc.iocs.join('<br>') : 'No specific endpoints or paths captured.'}</div>
+              <div class="drawer-title">Status</div>
+              <div>Currently <strong style="color:var(--gray-700)">${inc.status.toUpperCase()}</strong></div>
+            </div>
+            <div>
+              <div class="drawer-title">Telemetry at Time of Trigger</div>
+              <pre class="drawer-pre">${ctxString}</pre>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function toggleRawAI() {
+  const raw = document.getElementById('ai-raw-block');
+  raw.style.display = raw.style.display === 'none' ? 'block' : 'none';
+}
+
+function parseAndRenderAI(text, model) {
+  const idle = document.getElementById('ai-idle-panel');
+  const rich = document.getElementById('ai-rich-panel');
+  const rawEl = document.getElementById('ai-output-full');
+
+  // Store raw
+  if (rawEl) rawEl.textContent = text;
+
+  // Show model tag
+  const modelTag = document.getElementById('ai-model-tag');
+  if (modelTag) modelTag.textContent = model || 'local';
+
+  // Parse sections
+  const rootMatch   = text.match(/1\.\s*ROOT CAUSE[^:]*:\s*([\s\S]*?)(?=\n2\.|$)/i);
+  const iocMatch    = text.match(/2\.\s*IOC ANALYSIS[^:]*:\s*([\s\S]*?)(?=\n3\.|$)/i);
+  const remedMatch  = text.match(/3\.\s*REMEDIATION[^:]*:\s*([\s\S]*?)$/i);
+
+  const rootText  = rootMatch  ? rootMatch[1].trim()  : text;
+  const iocText   = iocMatch   ? iocMatch[1].trim()   : '';
+  const remedText = remedMatch ? remedMatch[1].trim()  : '';
+
+  // Root cause
+  document.getElementById('ai-root-text').textContent = rootText;
+  const mitreChips = document.getElementById('ai-mitre-chips');
+  mitreChips.innerHTML = '';
+  // Extract MITRE IDs from entire text
+  const mitreIds = [...new Set(text.match(/T\d{4}(?:\.\d{3})?/g) || [])];
+  mitreIds.forEach(id => {
+    const chip = document.createElement('span');
+    chip.className = 'ai-chip ai-chip-mitre';
+    chip.textContent = id;
+    mitreChips.appendChild(chip);
+  });
+
+  // IOC
+  document.getElementById('ai-ioc-text').textContent = iocText;
+  const iocChips = document.getElementById('ai-ioc-chips');
+  iocChips.innerHTML = '';
+  // Pull IOCs from current incident cache for display
+  const allIocs = [...new Set(incidentCache.flatMap(i => i.iocs || []))];
+  allIocs.forEach(ioc => {
+    const chip = document.createElement('span');
+    chip.className = 'ai-chip ai-chip-ioc';
+    chip.textContent = ioc;
+    iocChips.appendChild(chip);
+  });
+
+  // Remediation steps
+  const remedEl = document.getElementById('ai-remed-steps');
+  remedEl.innerHTML = '';
+  const steps = remedText.split(/(?:\r?\n)?[a-d]\)\s+/).filter(s => s.trim());
+  if (steps.length === 0 && remedText) steps.push(remedText);
+  steps.forEach((step, i) => {
+    const row = document.createElement('div');
+    row.className = 'ai-remed-step';
+    row.innerHTML = `<div class="ai-remed-num">${i+1}</div><div class="ai-remed-text">${step.trim()}</div>`;
+    remedEl.appendChild(row);
+  });
+
+  idle.style.display = 'none';
+  rich.style.display = 'block';
+}
+
+async function runAI() {
+  if (aiRunning) return;
+  aiRunning = true;
+
+  const streamOut = document.getElementById('ai-stream-output');
+  const idle = document.getElementById('ai-idle-panel');
+  const rich = document.getElementById('ai-rich-panel');
+
+  rich.style.display = 'none';
+  idle.style.display = 'block';
+  streamOut.textContent = '⟳ Connecting to local analysis engine (Ollama)...';
+
+  let fullText = '';
+  let modelUsed = '';
+
+  try {
+    const res = await fetch(`${API}/analyze/stream`, { method: 'POST' });
+    if (!res.ok || !res.body) throw new Error('Stream unavailable');
+
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buf = '';
+    streamOut.textContent = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += decoder.decode(value, { stream: true });
+      const frames = buf.split('\n\n');
+      buf = frames.pop();
+      for (const frame of frames) {
+        const line = frame.trim();
+        if (!line.startsWith('data:')) continue;
+        try {
+          const msg = JSON.parse(line.slice(5).trim());
+          if (msg.type === 'model') { modelUsed = msg.model; streamOut.textContent = `[${msg.model}] Generating...\n`; }
+          else if (msg.type === 'token') { fullText += msg.text; streamOut.textContent = (modelUsed ? `[${modelUsed}]\n\n` : '') + fullText; }
+          else if (msg.type === 'done') { modelUsed = msg.model || modelUsed; }
+          else if (msg.type === 'error') { streamOut.textContent += `\n\n⚠ ${msg.text}`; }
+        } catch (_) {}
+      }
+    }
+  } catch (e) {
+    try {
+      streamOut.textContent = '⟳ Analyzing (batch mode)...';
+      const r = await fetch(`${API}/analyze`, { method: 'POST' });
+      const d = await r.json();
+      fullText = d.analysis || d.error || 'No response.';
+      modelUsed = d.model || 'rule-based';
+      streamOut.textContent = fullText;
+    } catch (e2) {
+      streamOut.textContent = `⚠ Analysis unavailable: ${e2.message}`;
+      aiRunning = false; return;
+    }
+  }
+
+  if (fullText) parseAndRenderAI(fullText, modelUsed);
+  aiRunning = false;
+}
+
+// ── SOC Chatbox ──────────────────────────────────────────────────────────────
+let chatHistory = [];
+let _ollamaModel = null; // cached from startup probe
+
+async function probeOllama() {
+  const line = document.getElementById('chat-model-line');
+  try {
+    const r = await fetch(`${API}/ollama/status`);
+    if (r.ok) {
+      const d = await r.json();
+      if (d.status === 'online' && d.active) {
+        _ollamaModel = d.active;
+        if (line) line.textContent = `● ${d.active} · ${d.models.length} model${d.models.length!==1?'s':''} loaded · RTX 4050`;
+        if (line) line.style.color = '#34d399';
+      } else {
+        if (line) { line.textContent = '○ Ollama online — no models installed'; line.style.color = '#fbbf24'; }
+      }
+    } else {
+      if (line) { line.textContent = '○ Ollama offline — rule-based fallback active'; line.style.color = '#f87171'; }
+    }
+  } catch(_) {
+    if (line) { line.textContent = '○ Flask server offline'; line.style.color = '#f87171'; }
+  }
+}
+probeOllama(); // run immediately on page load
+
+function appendChatMsg(role, text, isTyping) {
+  const container = document.getElementById('chat-messages');
+  const div = document.createElement('div');
+  div.className = `chat-msg ${role}`;
+  const bubble = document.createElement('div');
+  bubble.className = 'chat-bubble' + (isTyping ? ' typing' : '');
+  if (role === 'assistant' && !isTyping) {
+    bubble.innerHTML = `<strong style="display:block;margin-bottom:4px;font-size:10px;color:rgba(255,255,255,.35);text-transform:uppercase;letter-spacing:.06em">SOC Assistant</strong>` + text.replace(/\n/g, '<br>');
+  } else {
+    bubble.textContent = text;
+  }
+  div.appendChild(bubble);
+  container.appendChild(div);
+  container.scrollTop = container.scrollHeight;
+  return bubble;
+}
+
+async function sendQuick(q) {
+  document.getElementById('chat-input').value = q;
+  await sendChat();
+}
+
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if (!q) return;
+  input.value = '';
+
+  appendChatMsg('user', q);
+  chatHistory.push({ role: 'user', content: q });
+
+  const typingBubble = appendChatMsg('assistant', '', true);
+
+  // Build rich live context
+  const openInc = incidentCache.filter(i => i.status === 'open' && i.triage_status !== 'false_positive');
+  const closedInc = incidentCache.filter(i => i.status === 'closed');
+  const allIocs = [...new Set(incidentCache.flatMap(i => i.iocs || []))];
+  const mitreTechniques = [...new Set(incidentCache.map(i => `${i.mitre_id} (${i.mitre_tactic})`))];
+  const triageBreakdown = {
+    new: incidentCache.filter(i=>i.triage_status==='new').length,
+    acknowledged: incidentCache.filter(i=>i.triage_status==='acknowledged').length,
+    mitigated: incidentCache.filter(i=>i.triage_status==='mitigated').length,
+    false_positive: incidentCache.filter(i=>i.triage_status==='false_positive').length,
+  };
+
+  const incidentDetail = incidentCache.slice(-10).map(i =>
+    `  • [${i.status.toUpperCase()}] ${i.rule_name} | Sev: ${i.severity} | Score: ${Math.round(i.peak_score)} | MITRE: ${i.mitre_id} ${i.mitre_tactic} | Events: ${i.event_count} | Duration: ${Math.round(i.duration_sec||0)}s | IOCs: ${(i.iocs||[]).join(', ')||'none'} | Triage: ${i.triage_status}`
+  ).join('\n');
+
+  const systemPrompt = `You are a senior SOC Tier 2 analyst and security mentor embedded in BehaviorProfiler — a live Android application behavior monitoring platform. You are running locally on the analyst's machine (RTX 4050 via Ollama) — no data leaves the device.
+
+LIVE SESSION DATA:
+- Open incidents (non-FP): ${openInc.length} | Closed: ${closedInc.length} | Total: ${incidentCache.length}
+- Triage status: New=${triageBreakdown.new}, Acked=${triageBreakdown.acknowledged}, Mitigated=${triageBreakdown.mitigated}, False Positives=${triageBreakdown.false_positive}
+- Active MITRE techniques: ${mitreTechniques.join('; ') || 'None'}
+- Observed IOCs/endpoints: ${allIocs.join(', ') || 'None'}
+- Recent incidents (last 10):
+${incidentDetail || '  None'}
+
+PERSONA & BEHAVIOR:
+You are approachable, knowledgeable, and genuinely helpful. You engage in real conversations — you don't just spit out bullet lists. When the analyst thinks out loud or asks a vague question, engage with it thoughtfully. When they ask something technical, go deep. When they ask a follow-up, remember the context from this conversation.
+
+You have expertise in: Android security, MITRE ATT&CK, network forensics, log analysis, malware behavior patterns, and secure coding practices. You know the difference between a dev bug and a real attack vector.
+
+STYLE:
+- Write in natural paragraphs when explaining things, not just bullet lists.
+- Be direct and honest — if something looks like a false positive, say so and explain why.
+- Match the analyst's tone: if they're being casual and exploratory, be conversational; if they're in incident response mode, be sharp and precise.
+- If you're uncertain, say so — "I'd want to see X before concluding Y" is good analysis.
+- No word limit — answer as thoroughly as the question deserves. A simple question gets a short answer; a complex investigation gets a detailed one.`;
+
+  try {
+    let responded = false;
+    let answer = '';
+
+    // Resolve model via Flask proxy (already has server-side Ollama access — no CORS issue)
+    let model = _ollamaModel;
+    if (!model) {
+      try {
+        const st = await fetch(`${API}/ollama/status`);
+        if (st.ok) { const d = await st.json(); model = d.active; _ollamaModel = model; }
+      } catch(_) {}
+    }
+
+    if (model) {
+      const messages = [
+        { role: 'system', content: systemPrompt },
+        ...chatHistory.slice(-16)
+      ];
+      // POST to Flask proxy → Ollama (no CORS problem)
+      const r = await fetch(`${API}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model, messages }),
+        signal: AbortSignal.timeout(120000)
+      });
+      if (r.ok && r.body) {
+        const reader = r.body.getReader();
+        const dec = new TextDecoder();
+        typingBubble.classList.remove('typing');
+        typingBubble.innerHTML = `<div class="chat-sender">SOC Assistant · <span style="color:rgba(255,255,255,.25)">${model}</span></div><div class="chat-text" id="chat-streaming-text"></div>`;
+        const streamEl = typingBubble.querySelector('#chat-streaming-text');
+        let buf = '';
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buf += dec.decode(value, {stream: true});
+          const frames = buf.split('\n\n');
+          buf = frames.pop();
+          for (const frame of frames) {
+            const line = frame.trim();
+            if (!line.startsWith('data:')) continue;
+            try {
+              const msg = JSON.parse(line.slice(5).trim());
+              if (msg.type === 'token') { answer += msg.text; streamEl.innerHTML = formatChatText(answer); }
+              else if (msg.type === 'error') { answer += `\n\n⚠ ${msg.text}`; streamEl.innerHTML = formatChatText(answer); }
+            } catch(_) {}
+          }
+          document.getElementById('chat-messages').scrollTop = 99999;
+        }
+        streamEl.innerHTML = formatChatText(answer);
+        responded = true;
+      }
+    }
+
+    if (!responded) {
+      const lowerQ = q.toLowerCase();
+      const openInc2 = incidentCache.filter(i => i.status === 'open');
+      const allIocs2 = [...new Set(incidentCache.flatMap(i => i.iocs || []))];
+      if (lowerQ.includes('open') || lowerQ.includes('incident') || lowerQ.includes('summar') || lowerQ.includes('what') || lowerQ.includes('happening') || lowerQ.includes('threat')) {
+        answer = openInc2.length
+          ? `Right now I'm tracking **${openInc2.length} open incident(s)**:\n\n${openInc2.map(i => `**${i.rule_name}** [${i.severity.toUpperCase()}]\nMITRE: ${i.mitre_id} — ${i.mitre_tactic}\n${i.event_count} events detected, peak anomaly score ${Math.round(i.peak_score)}.\n_${i.description}_`).join('\n\n')}`
+          : `Nothing is currently firing — all ${incidentCache.length} incidents from this session are closed or resolved. The baseline looks stable. If you were seeing activity earlier, it may have self-resolved (e.g. a retry loop that exhausted itself).`;
+      } else if (lowerQ.includes('mitre') || lowerQ.includes('tactic') || lowerQ.includes('technique')) {
+        const tactics = [...new Set(incidentCache.map(i => `**${i.mitre_id}** — ${i.mitre_tactic}`))];
+        answer = tactics.length
+          ? `Here are the MITRE ATT&CK techniques mapped in this session:\n\n${tactics.join('\n')}\n\nThese map to the Execution, Exfiltration, and Impact tactics primarily. Want me to explain what any of these mean in the context of an Android app?`
+          : `No MITRE techniques are active — no incidents have been detected yet. As soon as the detector fires, I'll have technique mappings to discuss.`;
+      } else if (lowerQ.includes('ioc') || lowerQ.includes('endpoint') || lowerQ.includes('path')) {
+        answer = allIocs2.length
+          ? `The collector has extracted these endpoints/paths as Indicators of Compromise:\n\n${allIocs2.map(i=>`\`${i}\``).join('  ·  ')}\n\nThese appeared in network traffic logged via ADB. Whether they're malicious depends on context — a legitimate \`/status\` health-check polling endpoint looks the same as a C2 beacon if the timing is aggressive enough. What do you want to dig into?`
+          : `No specific endpoint IOCs have been extracted yet. This either means the behavior is purely volumetric (high request count to generic paths) or the app hasn't generated log entries matching the IOC extraction pattern. Keep monitoring.`;
+      } else if (lowerQ.includes('remedi') || lowerQ.includes('fix') || lowerQ.includes('step') || lowerQ.includes('do')) {
+        const top = openInc2[0];
+        if (!top) answer = `No active incidents right now, so there's nothing urgent to remediate. If you're doing a post-incident review, I can walk through what the right response would have been for any specific incident in this session.`;
+        else if (top.rule_id === 'infinite_retry') answer = `For the **Infinite Retry Loop**, the fix is on the client side:\n\n1. **Add exponential backoff with jitter** — don't retry immediately; wait 2^n seconds plus a random offset\n2. **Implement a circuit breaker** — after 3 consecutive failures, stop retrying and surface an error to the user\n3. **Check your NetworkManager/OkHttp config** — many Android retry bugs come from misconfigured interceptors\n\nThis isn't a security attack — it's a client bug that creates a denial-of-service pattern against your own backend.`;
+        else if (top.rule_id === 'request_spam') answer = `For the **Request Spam** pattern, you're looking at a runaway background job:\n\n1. **Rate-limit at the OS level** using iptables or Android's traffic shaping if you need immediate containment\n2. **Kill the offending thread** — check your WorkManager or AlarmManager jobs for infinite loops\n3. **Review coroutine/thread lifecycle** — a common cause is a scope that doesn't get cancelled on lifecycle events\n\nThe error rate is below 30% which suggests the server is still responding — this is more DoS risk than exploitation.`;
+        else if (top.rule_id === 'logic_bomb_exfil') answer = `**This is the most serious pattern in the ruleset.** For Data Exfiltration:\n\n1. **Immediately block egress** on the identified IOC endpoints at your firewall or via Android's VpnService\n2. **Capture a memory dump and pcap** before killing anything — forensic evidence is time-sensitive\n3. **Isolate the device** from the network if possible\n4. **Preserve logs** — don't clear logcat\n\nThe trigger condition is high storage reads immediately followed by a network spike, which matches data-staging-then-exfil behavior.`;
+        else answer = `For **${top.rule_name}**:\n\n1. Isolate the affected process and capture full logs before any changes\n2. Review recent code commits — look for the introducing change\n3. Roll back the deployment if a specific commit correlates with the anomaly onset\n4. Document the incident timeline for your audit trail`;
+      } else if (lowerQ.includes('false positive') || lowerQ.includes('fp') || lowerQ.includes('confident') || lowerQ.includes('real')) {
+        answer = `Good question to ask. Without Ollama available I can only give you a structural answer: the detector uses ratio-based thresholds against a 30-tick rolling baseline. **False positives are most likely when:**\n\n- The baseline was locked during an unusual traffic spike\n- The app legitimately polls aggressively (e.g. a dev/debug build)\n- A one-time event (app startup, first-run setup) triggered a transient spike\n\nThe best signal for a true positive is **persistence** — if the incident keeps firing across multiple ticks, it's unlikely to be a transient glitch. Check the event count and duration on the incident cards.`;
+      } else {
+        answer = `I'm running in rule-based mode right now (Ollama isn't reachable). I can give you structured analysis on: open incidents, MITRE techniques, IOC investigation, remediation steps, or false positive assessment.\n\nOnce Ollama is running (\`ollama serve\`), I'll be able to hold full open-ended conversations with you. What would you like to know in the meantime?`;
+      }
+      typingBubble.classList.remove('typing');
+      typingBubble.innerHTML = `<div class="chat-sender">SOC Assistant · <span style="color:rgba(255,255,255,.25)">rule-based</span></div><div class="chat-text">${formatChatText(answer)}</div>`;
+    }
+
+    chatHistory.push({ role: 'assistant', content: answer });
+    document.getElementById('chat-messages').scrollTop = 99999;
+  } catch(e) {
+    typingBubble.classList.remove('typing');
+    typingBubble.textContent = `⚠ Chat error: ${e.message}`;
+  }
+}
+
+function formatChatText(text) {
+  // Light markdown: **bold**, `code`, numbered lists, bullet lists, newlines
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/`([^`]+)`/g, '<code style="background:rgba(255,255,255,.1);padding:1px 5px;border-radius:3px;font-family:\'DM Mono\',monospace;font-size:11px">$1</code>')
+    .replace(/_(.+?)_/g, '<em style="color:rgba(255,255,255,.55)">$1</em>')
+    .replace(/\n(\d+)\.\s+/g, (m,n) => `<br><span style="display:inline-block;min-width:18px;color:rgba(255,255,255,.35);font-size:11px">${n}.</span> `)
+    .replace(/\n•\s+/g, '<br><span style="color:rgba(255,255,255,.3);margin-right:6px">•</span>')
+    .replace(/\n/g, '<br>');
+}
+
+function clearChat() {
+  chatHistory = [];
+  const msgs = document.getElementById('chat-messages');
+  msgs.innerHTML = `<div class="chat-msg assistant"><div class="chat-bubble"><div class="chat-sender">SOC Assistant</div><div class="chat-text">Chat cleared. Fresh session — what would you like to investigate?</div></div></div>`;
+}
+
+function setView(name, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  if (el) el.classList.add('active');
+  const titles = { dashboard: 'Dashboard', signals: 'Signal Feed', anomalies: 'Kill Chain & Alerts', ai: 'AI Analysis', chat: 'SOC Chatbox', report: 'Audit Report' };
+  document.getElementById('topbar-title').textContent = titles[name] || name;
+  if (name === 'report') updateReportSummary();
+}
+
+function updateReportSummary() {
+  const dur  = Math.floor((Date.now() - sessionStart) / 1000);
+  const mm   = Math.floor(dur / 60), ss = dur % 60;
+  const crit = incidentCache.filter(i => i.severity === 'critical' && i.triage_status !== 'false_positive').length;
+  const high = incidentCache.filter(i => i.severity === 'high'     && i.triage_status !== 'false_positive').length;
+  const med  = incidentCache.filter(i => i.severity === 'medium'   && i.triage_status !== 'false_positive').length;
+  const fps  = incidentCache.filter(i => i.triage_status === 'false_positive').length;
+  const mit  = incidentCache.filter(i => i.triage_status === 'mitigated').length;
+  const ack  = incidentCache.filter(i => i.triage_status === 'acknowledged').length;
+  const total = incidentCache.length;
+  let riskScore = Math.min((crit*40)+(high*25)+(med*10), 100);
+  if (crit > 0 && riskScore < 85) riskScore = 85;
+  if (high > 0 && riskScore < 65) riskScore = 65;
+  if (med  > 0 && riskScore < 40) riskScore = 40;
+  const riskColor = riskScore>=85?'#dc2626':riskScore>=65?'#ea580c':riskScore>=40?'#d97706':'#059669';
+  const riskLabel = riskScore>=85?'CRITICAL':riskScore>=65?'HIGH':riskScore>=40?'MEDIUM':'LOW';
+  const allIocs = [...new Set(incidentCache.flatMap(i=>i.iocs||[]))];
+  const mitreTechniques = [...new Set(incidentCache.map(i=>`${i.mitre_id} — ${i.mitre_tactic}`))];
+  const aiText = document.getElementById('ai-output-full')?.textContent || '';
+
+  document.getElementById('report-summary').innerHTML = `
+    <div style="background:var(--navy);border-radius:8px;padding:24px 28px;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center">
+      <div>
+        <div style="font-family:'DM Serif Display',serif;font-size:20px;color:#fff;margin-bottom:2px">BehaviorProfiler — Audit Report</div>
+        <div style="font-size:11px;color:rgba(255,255,255,.35)">com.audit.behaviortestapp · ${new Date().toLocaleString()} · Session ${mm}m ${ss}s</div>
+      </div>
+      <div style="text-align:center;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:16px 24px">
+        <div style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:4px">Risk Score</div>
+        <div style="font-family:'DM Mono',monospace;font-size:40px;font-weight:500;color:${riskColor};line-height:1">${riskScore}</div>
+        <div style="font-size:11px;font-weight:700;color:${riskColor};margin-top:4px">${riskLabel}</div>
+      </div>
+    </div>
+
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:16px">
+      ${[['Critical',crit,'#dc2626'],['High',high,'#ea580c'],['Medium',med,'#d97706'],['Mitigated',mit,'#059669'],['False +',fps,'#64748b'],['Total',total,'#1e293b']].map(([l,v,c])=>`
+        <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:14px;text-align:center">
+          <div style="font-family:'DM Mono',monospace;font-size:24px;font-weight:500;color:${c}">${v}</div>
+          <div style="font-size:10px;color:var(--gray-400);text-transform:uppercase;margin-top:3px">${l}</div>
+        </div>`).join('')}
+    </div>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">
+      <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:10px;letter-spacing:.07em">Triage Breakdown</div>
+        ${[['Acknowledged',ack,'#3b82f6'],['Mitigated',mit,'#059669'],['False Positive',fps,'#64748b'],['Unresolved',total-ack-mit-fps,'#dc2626']].map(([l,v,c])=>`
+          <div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid var(--gray-100)">
+            <span style="font-size:12px;color:var(--gray-600)">${l}</span>
+            <span style="font-family:'DM Mono',monospace;font-size:12px;font-weight:600;color:${c}">${v}</span>
+          </div>`).join('')}
+      </div>
+      <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px">
+        <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:10px;letter-spacing:.07em">MITRE Techniques</div>
+        ${mitreTechniques.length
+          ? mitreTechniques.map(t=>`<div style="font-family:'DM Mono',monospace;font-size:10px;color:var(--gray-600);padding:4px 0;border-bottom:1px solid var(--gray-100)">${t}</div>`).join('')
+          : '<div style="font-size:12px;color:var(--gray-400)">No techniques mapped</div>'}
+      </div>
+    </div>
+
+    ${allIocs.length ? `
+    <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--gray-400);margin-bottom:10px;letter-spacing:.07em">Indicators of Compromise (IOCs)</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${allIocs.map(ioc=>`<span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;font-family:'DM Mono',monospace;font-size:10px;padding:3px 8px;border-radius:4px">${ioc}</span>`).join('')}</div>
+    </div>` : ''}
+
+    ${aiText ? `
+    <div style="background:var(--navy);border-radius:8px;padding:16px 20px;margin-bottom:16px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:rgba(255,255,255,.35);margin-bottom:10px;letter-spacing:.07em">AI SOC Analysis</div>
+      <pre style="font-size:11px;color:rgba(255,255,255,.6);font-family:'DM Mono',monospace;white-space:pre-wrap;line-height:1.7;margin:0">${aiText}</pre>
+    </div>` : ''}
+
+    <div style="background:#fff;border:1px solid var(--border);border-radius:8px;overflow:hidden;margin-bottom:4px">
+      <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:10px;font-weight:700;text-transform:uppercase;color:var(--gray-400);letter-spacing:.07em">Incident Log — ${total} total</div>
+      ${total===0
+        ? '<div style="padding:24px;text-align:center;color:var(--gray-400)">No incidents recorded.</div>'
+        : `<table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:var(--gray-50)">
+              ${['#','Incident','Severity','MITRE ID','Tactic','Score','Events','Duration','IOCs','First Seen','Last Seen','Triage'].map(h=>`<th style="padding:8px 10px;font-size:9px;font-weight:700;text-transform:uppercase;color:var(--gray-400);text-align:left;border-bottom:1px solid var(--border);white-space:nowrap">${h}</th>`).join('')}
+            </tr></thead>
+            <tbody>${[...incidentCache].reverse().map((inc,i)=>{
+              const sc=inc.severity==='critical'?'#dc2626':inc.severity==='high'?'#ea580c':'#d97706';
+              const dur2=Math.round(inc.duration_sec||0);
+              const iocs=(inc.iocs&&inc.iocs.length)?inc.iocs.join(', '):'—';
+              return `<tr style="border-bottom:1px solid var(--gray-100)">
+                <td style="padding:7px 10px;color:var(--gray-400);font-size:11px">${i+1}</td>
+                <td style="padding:7px 10px;font-weight:600;font-size:12px">${inc.rule_name}</td>
+                <td style="padding:7px 10px"><span style="background:${sc}18;color:${sc};font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase">${inc.severity}</span></td>
+                <td style="padding:7px 10px;font-family:monospace;font-size:10px;color:var(--gray-500)">${inc.mitre_id||'—'}</td>
+                <td style="padding:7px 10px;font-size:11px;color:var(--gray-500);max-width:160px">${inc.mitre_tactic||'—'}</td>
+                <td style="padding:7px 10px;font-family:monospace;font-size:11px;color:${sc};font-weight:700">${Math.round(inc.peak_score)}</td>
+                <td style="padding:7px 10px;font-size:11px">${inc.event_count}</td>
+                <td style="padding:7px 10px;font-size:11px">${dur2}s</td>
+                <td style="padding:7px 10px;font-family:monospace;font-size:10px;color:var(--gray-500);max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${iocs}</td>
+                <td style="padding:7px 10px;font-family:monospace;font-size:10px;color:var(--gray-400)">${new Date(inc.first_seen).toLocaleTimeString()}</td>
+                <td style="padding:7px 10px;font-family:monospace;font-size:10px;color:var(--gray-400)">${new Date(inc.last_seen).toLocaleTimeString()}</td>
+                <td style="padding:7px 10px;font-size:11px;color:var(--gray-500)">${inc.triage_status||'new'}</td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>`}
+    </div>`;
+}
+
+function exportReport() {
+  const now = new Date();
+  const dur = Math.floor((Date.now() - sessionStart) / 1000);
+  const mm  = Math.floor(dur / 60), ss = dur % 60;
+  const crit  = incidentCache.filter(i => i.severity==='critical' && i.triage_status!=='false_positive').length;
+  const high  = incidentCache.filter(i => i.severity==='high'     && i.triage_status!=='false_positive').length;
+  const med   = incidentCache.filter(i => i.severity==='medium'   && i.triage_status!=='false_positive').length;
+  const fps   = incidentCache.filter(i => i.triage_status==='false_positive').length;
+  const mit   = incidentCache.filter(i => i.triage_status==='mitigated').length;
+  const ack   = incidentCache.filter(i => i.triage_status==='acknowledged').length;
+  const total = incidentCache.length;
+  const reportId = `BP-${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}-${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}`;
+
+  let riskScore = Math.min((crit*40)+(high*25)+(med*10), 100);
+  if (crit > 0 && riskScore < 85) riskScore = 85;
+  if (high > 0 && riskScore < 65) riskScore = 65;
+  if (med  > 0 && riskScore < 40) riskScore = 40;
+  const riskColor = riskScore>=85?'#dc2626':riskScore>=65?'#ea580c':riskScore>=40?'#d97706':'#059669';
+  const riskLabel = riskScore>=85?'CRITICAL':riskScore>=65?'HIGH':riskScore>=40?'MEDIUM':'LOW';
+
+  const allIocs = [...new Set(incidentCache.flatMap(i=>i.iocs||[]))];
+  const mitreTechniques = [...new Map(incidentCache.map(i=>[i.mitre_id, i])).values()];
+  const aiText = document.getElementById('ai-output-full')?.textContent || 'No AI analysis was run during this session.';
+
+  // Incident detail cards
+  const incidentCards = [...incidentCache].reverse().map((inc, idx) => {
+    const sc = inc.severity==='critical'?'#dc2626':inc.severity==='high'?'#ea580c':'#d97706';
+    const scBg = inc.severity==='critical'?'#fef2f2':inc.severity==='high'?'#fff7ed':'#fffbeb';
+    const ctx = inc.trigger_context || {};
+    const dur2 = Math.round(inc.duration_sec||0);
+    const triageColor = inc.triage_status==='mitigated'?'#059669':inc.triage_status==='false_positive'?'#64748b':inc.triage_status==='acknowledged'?'#1d4ed8':'#d97706';
+    return `
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-bottom:20px;overflow:hidden;border-left:4px solid ${sc}">
+      <div style="background:${scBg};padding:14px 20px;display:flex;justify-content:space-between;align-items:flex-start;border-bottom:1px solid #e2e8f0">
+        <div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px">
+            <span style="font-family:'DM Mono',monospace;font-size:10px;color:#94a3b8">#${idx+1}</span>
+            <span style="font-size:15px;font-weight:700;color:#0f172a">${inc.rule_name}</span>
+            <span style="background:${sc};color:#fff;font-size:9px;font-weight:700;padding:2px 8px;border-radius:3px;text-transform:uppercase">${inc.severity}</span>
+            <span style="background:#1e293b;color:#fff;font-family:'DM Mono',monospace;font-size:10px;padding:2px 7px;border-radius:3px">${inc.mitre_id||'N/A'}</span>
+          </div>
+          <div style="font-size:12px;color:#475569">${inc.mitre_tactic||''} · ${inc.description}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-family:'DM Mono',monospace;font-size:28px;font-weight:500;color:${sc};line-height:1">${Math.round(inc.peak_score)}</div>
+          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase">Peak Score</div>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0;border-bottom:1px solid #e2e8f0">
+        ${[['Events',inc.event_count,'#0f172a'],['Duration',dur2+'s','#0f172a'],['First Seen',new Date(inc.first_seen).toLocaleTimeString(),'#64748b'],['Last Seen',new Date(inc.last_seen).toLocaleTimeString(),'#64748b']].map(([l,v,c])=>`
+        <div style="padding:12px 16px;border-right:1px solid #e2e8f0">
+          <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em;margin-bottom:4px">${l}</div>
+          <div style="font-family:'DM Mono',monospace;font-size:14px;font-weight:600;color:${c}">${v}</div>
+        </div>`).join('')}
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0;padding:14px 16px">
+        <div style="padding-right:16px;border-right:1px solid #f1f5f9">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#94a3b8;letter-spacing:.07em;margin-bottom:8px">Telemetry at Trigger</div>
+          <table style="width:100%;border-collapse:collapse">
+            ${Object.entries(ctx).map(([k,v])=>`<tr><td style="font-size:11px;color:#64748b;padding:2px 0">${k.replace(/_/g,' ')}</td><td style="font-family:'DM Mono',monospace;font-size:11px;font-weight:600;color:#0f172a;text-align:right;padding:2px 0">${typeof v==='number'?v.toFixed(1):v}</td></tr>`).join('')}
+          </table>
+        </div>
+        <div style="padding-left:16px">
+          <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#94a3b8;letter-spacing:.07em;margin-bottom:8px">Indicators of Compromise</div>
+          ${(inc.iocs&&inc.iocs.length)
+            ? inc.iocs.map(ioc=>`<div style="font-family:'DM Mono',monospace;font-size:11px;background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;padding:3px 8px;border-radius:4px;margin-bottom:4px;display:inline-block;margin-right:4px">${ioc}</div>`).join('')
+            : '<div style="font-size:11px;color:#94a3b8">No specific endpoints extracted</div>'}
+          <div style="margin-top:10px">
+            <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:#94a3b8;letter-spacing:.07em;margin-bottom:6px">Triage Status</div>
+            <span style="background:${triageColor}18;color:${triageColor};border:1px solid ${triageColor}30;font-size:11px;font-weight:600;padding:4px 10px;border-radius:4px;text-transform:uppercase">${inc.triage_status||'new'}</span>
+          </div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // MITRE technique detail table
+  const mitreRows = mitreTechniques.map(inc => `
+    <tr style="border-bottom:1px solid #f1f5f9">
+      <td style="padding:9px 12px;font-family:monospace;font-size:11px;font-weight:700;color:#1d4ed8">${inc.mitre_id||'—'}</td>
+      <td style="padding:9px 12px;font-size:12px;font-weight:600">${inc.rule_name}</td>
+      <td style="padding:9px 12px;font-size:11px;color:#64748b">${inc.mitre_tactic||'—'}</td>
+      <td style="padding:9px 12px"><span style="background:${inc.severity==='critical'?'#dc2626':inc.severity==='high'?'#ea580c':'#d97706'}18;color:${inc.severity==='critical'?'#dc2626':inc.severity==='high'?'#ea580c':'#d97706'};font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase">${inc.severity}</span></td>
+      <td style="padding:9px 12px;font-size:11px;color:#64748b">${inc.event_count} events</td>
+    </tr>`).join('');
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<title>BehaviorProfiler — Audit Report ${reportId}</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=DM+Mono:wght@400;500&family=DM+Serif+Display&display=swap" rel="stylesheet"/>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'DM Sans',sans-serif;background:#f8fafc;color:#0f172a;font-size:13px;line-height:1.6;-webkit-font-smoothing:antialiased}
+.page{max-width:1100px;margin:0 auto;padding:48px 40px}
+a{color:inherit;text-decoration:none}
+@media print{body{background:#fff}.no-print{display:none}}
+</style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── COVER ─────────────────────────────────────────────────────── -->
+  <div style="background:#0f1e3c;border-radius:12px;padding:48px 52px;margin-bottom:40px;position:relative;overflow:hidden">
+    <div style="position:absolute;top:0;right:0;width:300px;height:100%;background:linear-gradient(135deg,rgba(29,78,216,.15),transparent);pointer-events:none"></div>
+    <div style="display:flex;justify-content:space-between;align-items:flex-start">
+      <div>
+        <div style="font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.3);margin-bottom:12px">Confidential — Academic Research</div>
+        <div style="font-family:'DM Serif Display',serif;font-size:36px;color:#fff;line-height:1.1;margin-bottom:6px">BehaviorProfiler</div>
+        <div style="font-size:16px;color:rgba(255,255,255,.5);margin-bottom:32px">Dynamic Android Application Security Audit</div>
+        <table style="border-collapse:collapse">
+          ${[
+            ['Report ID', reportId],
+            ['Generated', now.toLocaleString()],
+            ['Session Duration', mm+'m '+ss+'s'],
+            ['Target Application', 'com.audit.behaviortestapp'],
+            ['Detection Method', 'ADB logcat · MITRE ATT&amp;CK · Statistical Anomaly Detection'],
+            ['AI Engine', 'Local LLM (Ollama) · RTX 4050 · Air-gapped'],
+            ['Analyst', 'BehaviorProfiler v3.0 — Automated + Manual Triage'],
+          ].map(([l,v])=>`<tr><td style="font-size:11px;color:rgba(255,255,255,.35);padding:3px 20px 3px 0;white-space:nowrap">${l}</td><td style="font-size:11px;color:rgba(255,255,255,.7);font-family:'DM Mono',monospace">${v}</td></tr>`).join('')}
+        </table>
+      </div>
+      <div style="text-align:center;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:28px 40px;flex-shrink:0">
+        <div style="font-size:10px;color:rgba(255,255,255,.3);text-transform:uppercase;letter-spacing:.09em;margin-bottom:10px">Session Risk Score</div>
+        <div style="font-family:'DM Mono',monospace;font-size:64px;font-weight:500;color:${riskColor};line-height:1">${riskScore}</div>
+        <div style="font-size:13px;font-weight:700;letter-spacing:.1em;color:${riskColor};margin-top:8px">${riskLabel}</div>
+        <div style="font-size:10px;color:rgba(255,255,255,.25);margin-top:6px">out of 100</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TABLE OF CONTENTS ─────────────────────────────────────────── -->
+  <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:24px 28px;margin-bottom:32px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;margin-bottom:16px;border-bottom:1px solid #e2e8f0;padding-bottom:10px">Table of Contents</div>
+    ${['1. Executive Summary','2. Risk Assessment','3. Incident Timeline','4. MITRE ATT&CK Coverage','5. Indicators of Compromise','6. Incident Detail Analysis','7. Triage & Response Summary','8. AI-Generated SOC Analysis','9. Recommendations','10. Methodology & Limitations'].map((s,i)=>`
+    <div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:12px">
+      <span style="color:#0f172a">${s}</span>
+      <span style="color:#94a3b8;font-family:'DM Mono',monospace">p.${i+1}</span>
+    </div>`).join('')}
+  </div>
+
+  <!-- ── §1 EXECUTIVE SUMMARY ──────────────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">1 · Executive Summary</div>
+    <p style="font-size:13px;line-height:1.8;color:#334155;margin-bottom:14px">
+      This report documents the results of a dynamic behavioral security assessment conducted against <strong>com.audit.behaviortestapp</strong> using BehaviorProfiler v3.0. The assessment ran for <strong>${mm} minutes and ${ss} seconds</strong>, monitoring application behavior via ADB logcat with real-time anomaly detection calibrated against a learned baseline.
+    </p>
+    <p style="font-size:13px;line-height:1.8;color:#334155;margin-bottom:20px">
+      During the session, <strong>${total} incident(s)</strong> were detected across ${[crit&&`${crit} critical`,high&&`${high} high`,med&&`${med} medium`].filter(Boolean).join(', ')||'no'} severity levels. ${fps} incident(s) were triaged as false positives and ${mit} were confirmed mitigated. The overall session risk score is <strong style="color:${riskColor}">${riskScore}/100 (${riskLabel})</strong>.
+    </p>
+    <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:12px">
+      ${[['Critical',crit,'#dc2626'],['High',high,'#ea580c'],['Medium',med,'#d97706'],['Mitigated',mit,'#059669'],['False Pos.',fps,'#64748b'],['Total',total,'#1e293b']].map(([l,v,c])=>`
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;text-align:center;border-top:3px solid ${c}">
+        <div style="font-family:'DM Mono',monospace;font-size:28px;font-weight:500;color:${c};margin-bottom:4px">${v}</div>
+        <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em">${l}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- ── §2 RISK ASSESSMENT ────────────────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">2 · Risk Assessment</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#94a3b8;margin-bottom:14px;letter-spacing:.07em">Risk Score Breakdown</div>
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+          <div style="font-family:'DM Mono',monospace;font-size:52px;font-weight:500;color:${riskColor};line-height:1">${riskScore}</div>
+          <div>
+            <div style="font-size:14px;font-weight:700;color:${riskColor}">${riskLabel}</div>
+            <div style="font-size:11px;color:#64748b;margin-top:2px">Composite session score</div>
+          </div>
+        </div>
+        <div style="background:#f8fafc;border-radius:6px;padding:12px;font-size:11px;color:#475569;line-height:1.7">
+          Score formula: (Critical×40) + (High×25) + (Medium×10), capped at 100.<br>
+          Floor values: Critical≥85, High≥65, Medium≥40.
+        </div>
+      </div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:#94a3b8;margin-bottom:14px;letter-spacing:.07em">Severity Distribution</div>
+        ${[['Critical',crit,total,'#dc2626'],['High',high,total,'#ea580c'],['Medium',med,total,'#d97706'],['False Positive',fps,total,'#94a3b8']].map(([l,v,t,c])=>`
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;margin-bottom:4px">
+            <span style="font-size:11px;color:#475569">${l}</span>
+            <span style="font-size:11px;font-weight:600;color:${c}">${v} (${t>0?Math.round(v/t*100):0}%)</span>
+          </div>
+          <div style="background:#f1f5f9;border-radius:3px;height:6px;overflow:hidden">
+            <div style="background:${c};height:100%;width:${t>0?Math.round(v/t*100):0}%;border-radius:3px;transition:width .3s"></div>
+          </div>
+        </div>`).join('')}
+      </div>
+    </div>
+  </div>
+
+  <!-- ── §3 INCIDENT TIMELINE ──────────────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">3 · Incident Timeline — ${total} Event${total!==1?'s':''}</div>
+    ${total===0
+      ? '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:32px;text-align:center;color:#94a3b8">No incidents detected during this session.</div>'
+      : `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+              ${['#','Incident Name','Severity','MITRE ID','Score','Events','Duration','First Seen','Last Seen','Status','Triage'].map(h=>`<th style="padding:10px 12px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left;white-space:nowrap">${h}</th>`).join('')}
+            </tr></thead>
+            <tbody>${[...incidentCache].reverse().map((inc,i)=>{
+              const sc=inc.severity==='critical'?'#dc2626':inc.severity==='high'?'#ea580c':'#d97706';
+              const triC=inc.triage_status==='mitigated'?'#059669':inc.triage_status==='false_positive'?'#64748b':inc.triage_status==='acknowledged'?'#1d4ed8':'#d97706';
+              return `<tr style="border-bottom:1px solid #f1f5f9">
+                <td style="padding:9px 12px;color:#94a3b8;font-size:11px">${i+1}</td>
+                <td style="padding:9px 12px;font-weight:600;font-size:12px">${inc.rule_name}</td>
+                <td style="padding:9px 12px"><span style="background:${sc}18;color:${sc};font-size:9px;font-weight:700;padding:2px 7px;border-radius:3px;text-transform:uppercase">${inc.severity}</span></td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:10px;color:#1d4ed8;font-weight:700">${inc.mitre_id||'—'}</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:12px;font-weight:700;color:${sc}">${Math.round(inc.peak_score)}</td>
+                <td style="padding:9px 12px;font-size:11px">${inc.event_count}</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:11px">${Math.round(inc.duration_sec||0)}s</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:10px;color:#64748b">${new Date(inc.first_seen).toLocaleTimeString()}</td>
+                <td style="padding:9px 12px;font-family:monospace;font-size:10px;color:#64748b">${new Date(inc.last_seen).toLocaleTimeString()}</td>
+                <td style="padding:9px 12px"><span style="font-size:10px;font-weight:600;color:${inc.status==='open'?'#dc2626':'#059669'}">${inc.status.toUpperCase()}</span></td>
+                <td style="padding:9px 12px"><span style="background:${triC}18;color:${triC};font-size:9px;font-weight:600;padding:2px 7px;border-radius:3px;text-transform:uppercase">${inc.triage_status||'new'}</span></td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table>
+        </div>`}
+  </div>
+
+  <!-- ── §4 MITRE ATT&CK COVERAGE ──────────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">4 · MITRE ATT&CK Coverage</div>
+    <p style="font-size:13px;color:#475569;margin-bottom:16px;line-height:1.7">The following MITRE ATT&CK techniques were matched by the BehaviorProfiler rule engine during this session. Each mapping indicates a behavioral pattern consistent with the described adversarial technique.</p>
+    ${mitreTechniques.length===0
+      ? '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:24px;color:#94a3b8;text-align:center">No MITRE techniques were triggered in this session.</div>'
+      : `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+          <table style="width:100%;border-collapse:collapse">
+            <thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+              <th style="padding:10px 14px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left">Technique ID</th>
+              <th style="padding:10px 14px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left">Rule Name</th>
+              <th style="padding:10px 14px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left">Tactic</th>
+              <th style="padding:10px 14px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left">Severity</th>
+              <th style="padding:10px 14px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left">Occurrences</th>
+            </tr></thead>
+            <tbody>${mitreRows}</tbody>
+          </table>
+        </div>`}
+  </div>
+
+  <!-- ── §5 IOCs ────────────────────────────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">5 · Indicators of Compromise</div>
+    <p style="font-size:13px;color:#475569;margin-bottom:16px;line-height:1.7">The following endpoints and paths were extracted from ADB logcat entries matching the IOC pattern. These represent network destinations or filesystem paths that appeared in anomalous traffic during this session.</p>
+    ${allIocs.length===0
+      ? '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:24px;color:#94a3b8;text-align:center">No specific IOC endpoints were extracted. Traffic may be volumetric or targeting generic paths.</div>'
+      : `<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:20px 24px">
+          <div style="display:flex;flex-wrap:wrap;gap:8px">${allIocs.map(ioc=>`
+          <span style="background:#fff7ed;color:#c2410c;border:1px solid #fed7aa;font-family:'DM Mono',monospace;font-size:11px;padding:5px 12px;border-radius:5px;font-weight:500">${ioc}</span>`).join('')}</div>
+        </div>`}
+  </div>
+
+  <!-- ── §6 INCIDENT DETAIL ANALYSIS ───────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">6 · Incident Detail Analysis</div>
+    ${total===0
+      ? '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:32px;text-align:center;color:#94a3b8">No incidents to detail.</div>'
+      : incidentCards}
+  </div>
+
+  <!-- ── §7 TRIAGE & RESPONSE ──────────────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">7 · Triage &amp; Response Summary</div>
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px">
+      ${[['Acknowledged',ack,'#1d4ed8'],['Mitigated',mit,'#059669'],['False Positive',fps,'#64748b'],['Pending',total-ack-mit-fps,'#d97706']].map(([l,v,c])=>`
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px;text-align:center;border-top:3px solid ${c}">
+        <div style="font-family:'DM Mono',monospace;font-size:26px;font-weight:500;color:${c};margin-bottom:4px">${v}</div>
+        <div style="font-size:10px;color:#94a3b8;text-transform:uppercase;letter-spacing:.06em">${l}</div>
+      </div>`).join('')}
+    </div>
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;overflow:hidden">
+      <table style="width:100%;border-collapse:collapse">
+        <thead><tr style="background:#f8fafc;border-bottom:1px solid #e2e8f0">
+          <th style="padding:10px 14px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left">Incident</th>
+          <th style="padding:10px 14px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left">Severity</th>
+          <th style="padding:10px 14px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left">Triage Decision</th>
+          <th style="padding:10px 14px;font-size:9px;font-weight:700;text-transform:uppercase;color:#94a3b8;text-align:left">Status</th>
+        </tr></thead>
+        <tbody>${[...incidentCache].map(inc=>{
+          const sc=inc.severity==='critical'?'#dc2626':inc.severity==='high'?'#ea580c':'#d97706';
+          const triC=inc.triage_status==='mitigated'?'#059669':inc.triage_status==='false_positive'?'#64748b':inc.triage_status==='acknowledged'?'#1d4ed8':'#d97706';
+          return `<tr style="border-bottom:1px solid #f1f5f9">
+            <td style="padding:9px 14px;font-weight:600;font-size:12px">${inc.rule_name}</td>
+            <td style="padding:9px 14px"><span style="background:${sc}18;color:${sc};font-size:9px;font-weight:700;padding:2px 6px;border-radius:3px;text-transform:uppercase">${inc.severity}</span></td>
+            <td style="padding:9px 14px"><span style="background:${triC}18;color:${triC};font-size:10px;font-weight:600;padding:3px 8px;border-radius:4px;text-transform:uppercase">${inc.triage_status||'new'}</span></td>
+            <td style="padding:9px 14px;font-size:11px;font-weight:600;color:${inc.status==='open'?'#dc2626':'#059669'}">${inc.status.toUpperCase()}</td>
+          </tr>`;
+        }).join('')}</tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ── §8 AI ANALYSIS ─────────────────────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">8 · AI-Generated SOC Analysis</div>
+    <p style="font-size:13px;color:#475569;margin-bottom:16px;line-height:1.7">The following analysis was generated by a local large language model (Ollama, air-gapped, RTX 4050) during this session. It reflects the model's interpretation of the active incidents and signals at the time of generation. This analysis is advisory only and should be validated by a qualified security engineer.</p>
+    <div style="background:#0f1e3c;border-radius:10px;padding:28px 32px">
+      <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.09em;color:rgba(255,255,255,.3);margin-bottom:16px">◎ SOC Tier 2 Analysis Output</div>
+      <pre style="font-family:'DM Mono',monospace;font-size:12px;color:rgba(255,255,255,.7);white-space:pre-wrap;line-height:1.9;margin:0">${aiText}</pre>
+    </div>
+  </div>
+
+  <!-- ── §9 RECOMMENDATIONS ─────────────────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">9 · Recommendations</div>
+    <div style="display:flex;flex-direction:column;gap:12px">
+      ${[
+        ['Immediate','If any Critical incidents remain open and unmitigated, prioritize network-level containment before code remediation. Preserve ADB logs and memory dumps before restarting the application process.','#dc2626'],
+        ['Short-term','Review all High-severity findings with your development team. Implement exponential backoff, circuit-breakers, and request rate limits as appropriate. Update unit tests to cover the triggering edge cases.','#ea580c'],
+        ['Medium-term','Re-run this assessment against a clean release build to validate that remediations are effective. Consider integrating BehaviorProfiler into your CI/CD pipeline for regression testing.','#d97706'],
+        ['Monitoring','Extend the baseline training period (target ≥60 clean ticks) for a more accurate anomaly threshold. Review false-positive incidents to tune rule thresholds if noise is too high.','#1d4ed8'],
+      ].map(([l,v,c])=>`
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:16px 20px;border-left:4px solid ${c}">
+        <div style="font-size:11px;font-weight:700;text-transform:uppercase;color:${c};letter-spacing:.07em;margin-bottom:6px">${l}</div>
+        <div style="font-size:13px;color:#334155;line-height:1.7">${v}</div>
+      </div>`).join('')}
+    </div>
+  </div>
+
+  <!-- ── §10 METHODOLOGY ────────────────────────────────────────────── -->
+  <div style="margin-bottom:36px">
+    <div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:#94a3b8;border-bottom:2px solid #e2e8f0;padding-bottom:10px;margin-bottom:20px">10 · Methodology &amp; Limitations</div>
+    <div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:24px 28px">
+      <p style="font-size:13px;color:#334155;line-height:1.8;margin-bottom:14px"><strong>Data Collection:</strong> All behavioral data was collected via Android Debug Bridge (ADB) logcat in real-time from device <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px">emulator-5556</code>, filtering log lines tagged <code style="background:#f1f5f9;padding:1px 5px;border-radius:3px;font-family:'DM Mono',monospace;font-size:11px">BehaviorApp</code>. Logs are parsed using both JSON decoding and regex fallback to handle mixed log formats.</p>
+      <p style="font-size:13px;color:#334155;line-height:1.8;margin-bottom:14px"><strong>Anomaly Detection:</strong> A statistical baseline is trained over 30 clean ticks (~30 seconds) before anomaly scoring begins. Scores use a weighted deviation model against five feature dimensions: requests/min, error rate, average latency, crash count, and retry count. MITRE ATT&CK rules fire independently of the anomaly score.</p>
+      <p style="font-size:13px;color:#334155;line-height:1.8;margin-bottom:14px"><strong>MITRE Mapping:</strong> Rule-to-technique mappings are hand-authored approximations based on behavioral similarity. They are not definitive ATT&CK classifications and should not be treated as confirmed technique usage without further forensic validation.</p>
+      <p style="font-size:13px;color:#334155;line-height:1.8"><strong>Limitations:</strong> This tool monitors application-level behavior only. Network packet-level inspection, kernel-level events, and inter-process communication are outside the current scope. The AI analysis is generated by a locally-hosted open-source model and may contain inaccuracies. All findings should be validated by a qualified security professional before action is taken.</p>
+    </div>
+  </div>
+
+  <!-- ── FOOTER ─────────────────────────────────────────────────────── -->
+  <div style="margin-top:48px;padding-top:24px;border-top:1px solid #e2e8f0;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div style="font-family:'DM Serif Display',serif;font-size:14px;color:#0f172a">BehaviorProfiler — SOC Intelligence Platform</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px">v3.0 · Dynamic Android Security Assessment · Academic Research</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-family:'DM Mono',monospace;font-size:11px;color:#94a3b8">Report ID: ${reportId}</div>
+      <div style="font-size:11px;color:#94a3b8;margin-top:2px">${now.toLocaleDateString()} · Confidential</div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>`;
+
+  const blob = new Blob([html], {type:'text/html'});
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = `audit-${reportId}.html`;
+  a.click(); URL.revokeObjectURL(url);
+}
+</script>
+</body>
+</html>

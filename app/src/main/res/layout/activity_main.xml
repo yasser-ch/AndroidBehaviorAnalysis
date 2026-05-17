@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#0d0d0d">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="20dp">
+
+        <!-- Title -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Behavior Test App"
+            android:textColor="#ffffff"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="4dp"/>
+
+        <TextView
+            android:id="@+id/tv_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Status: idle"
+            android:textColor="#888888"
+            android:textSize="13sp"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Normal behavior -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="NORMAL BEHAVIOR"
+            android:textColor="#44aa88"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <Button
+            android:id="@+id/btn_normal"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Normal Request"
+            android:backgroundTint="#1a1a1a"
+            android:textColor="#44aa88"
+            android:layout_marginBottom="8dp"/>
+
+        <!-- Anomaly scenarios -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="ANOMALY SCENARIOS"
+            android:textColor="#cc4444"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"
+            android:layout_marginTop="12dp"/>
+
+        <Button
+            android:id="@+id/btn_retry_loop"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Trigger: Retry Loop"
+            android:backgroundTint="#1a1a1a"
+            android:textColor="#cc4444"
+            android:layout_marginBottom="8dp"/>
+
+        <Button
+            android:id="@+id/btn_request_spam"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Trigger: Request Spam"
+            android:backgroundTint="#1a1a1a"
+            android:textColor="#cc4444"
+            android:layout_marginBottom="8dp"/>
+
+        <Button
+            android:id="@+id/btn_crash_storm"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Trigger: Crash Storm"
+            android:backgroundTint="#1a1a1a"
+            android:textColor="#cc4444"
+            android:layout_marginBottom="8dp"/>
+
+        <Button
+            android:id="@+id/btn_slow_request"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Trigger: Slow / Timeout"
+            android:backgroundTint="#1a1a1a"
+            android:textColor="#cc4444"
+            android:layout_marginBottom="20dp"/>
+
+        <Button
+            android:id="@+id/btn_stop"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:text="Stop All"
+            android:backgroundTint="#1a1a1a"
+            android:textColor="#888888"
+            android:layout_marginBottom="20dp"/>
+
+        <!-- Log output -->
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="LOG OUTPUT"
+            android:textColor="#888888"
+            android:textSize="11sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp"/>
+
+        <TextView
+            android:id="@+id/tv_log"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Waiting..."
+            android:textColor="#aaaaaa"
+            android:textSize="11sp"
+            android:fontFamily="monospace"
+            android:background="#1a1a1a"
+            android:padding="12dp"
+            android:lineSpacingExtra="4dp"/>
+
+    </LinearLayout>
+</ScrollView>
