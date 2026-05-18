@@ -13,6 +13,8 @@
 It produces structured audit reports comparable to tools like MobSF, Frida, and Drozer, with an added layer of AI-generated SOC-style diagnosis.
 
 ---
+## Demo
+https://github.com/user-attachments/assets/00be01ce-6dfb-43b6-b3f1-19c69b3215dc
 
 ## Architecture
 
