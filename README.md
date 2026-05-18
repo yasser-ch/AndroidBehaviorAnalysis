@@ -134,7 +134,7 @@ It produces structured audit reports comparable to tools like MobSF, Frida, and 
 ### Step 1: Clone the Repository
 
 Open your terminal and clone the project directory:
-git clone [https://github.com/YOUR_USERNAME/AndroidBehaviorAnalysis.git](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis.git)
+git clone [[https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis.git](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis.git)]
 cd AndroidBehaviorAnalysis
 
 ### Step 2: Configure Python Virtual Environment
