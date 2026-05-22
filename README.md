@@ -222,10 +222,10 @@ We welcome contributions from everyone, and we appreciate your help to make this
 
 ## Contributors
 
-- Zakaria Aouianti — Android App Development ([GitHub](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis))
-- Yasser Chettour — Anomaly Detection Engine ([GitHub](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis))
-- Abdeljalil Fajri — Backend API & Infrastructure ([GitHub](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis))
-- Mohammed Ait Ourajli — Dashboard & AI Integration ([GitHub](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis))
+- Zakaria Aouianti — Android App Development 
+- Yasser Chettour — Anomaly Detection Engine ([GitHub](https://github.com/yasser-ch))
+- Abdeljalil Fajri — Backend API & Infrastructure ([GitHub](https://github.com/Abdeljalil-Fajri))
+- Mohammed Ait Ourajli — Dashboard & AI Integration ([GitHub](https://github.com/MAITO465))
 - Mohamed Lachgar — Supervisor ([ResearchGate](https://www.researchgate.net/profile/Mohamed-Lachgar))
 
 > École Nationale des Sciences Appliquées de Marrakech — 2025/2026
