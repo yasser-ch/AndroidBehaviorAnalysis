@@ -1,5 +1,3 @@
-<img width="182" height="150" alt="android_behavior_analysis_architecture" src="https://github.com/user-attachments/assets/577aec5f-dbc1-4563-93b2-9e2de39eee3d" /># AndroidBehaviorAnalysis — Runtime Intelligence Platform for Android
-
 ![AndroidBehaviorAnalysis Banner](https://img.shields.io/badge/AndroidBehaviorAnalysis-v1.0-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 
 This platform enables real-time behavioral profiling and AI-powered anomaly detection for Android applications. It connects to a running Android device or emulator via ADB, collects behavioral signals, scores anomalies using a weighted feature model mapped to **MITRE ATT&CK**, and generates AI-powered root cause hypotheses using a local LLM — all without modifying the target app or requiring root access.
