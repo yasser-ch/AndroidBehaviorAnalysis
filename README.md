@@ -214,7 +214,19 @@ The `app/` folder contains **BehaviorTestApp** — an intentionally instrumented
 
 ## Video Demonstration
 
-https://github.com/user-attachments/assets/00be01ce-6dfb-43b6-b3f1-19c69b3215dc
+[![AndroidBehaviorAnalysis Demo](https://img.youtube.com/vi/NQzftC-Sf8Q/0.jpg)](https://www.youtube.com/watch?v=NQzftC-Sf8Q)
+
+### Demo Walkthrough
+- **0:00** - Normal Baseline Calibration
+- **0:14** - Attack Simulation: Request Spam
+- **1:03** - Real-Time SOC Detection
+- **1:14** - Incident Mitigation
+- **1:18** - AI Root Cause Analysis (Local LLM)
+- **1:44** - Chatbot Interaction & Walkthrough
+- **2:09** - Attack Simulation Halted
+- **2:40** - Viewing Audit Report
+- **2:45** - Exporting Audit Report
+- **2:48** - Reviewing Exported Report
 
 ## Contributing
 
