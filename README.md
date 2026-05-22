@@ -1,58 +1,23 @@
-# AndroidBehaviorAnalysis
+# AndroidBehaviorAnalysis — Runtime Intelligence Platform for Android
 
-<div align="center">
+![AndroidBehaviorAnalysis Banner](https://img.shields.io/badge/AndroidBehaviorAnalysis-v1.0-3DDC84?style=for-the-badge&logo=android&logoColor=white)
 
-### Android Runtime Intelligence Platform
-
-*Dynamic behavioral profiling and AI-powered anomaly detection for Android applications. No root required.*
-
-![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat-square&logo=python&logoColor=white)
-![Android](https://img.shields.io/badge/Android-API%2037-3DDC84?style=flat-square&logo=android&logoColor=white)
-![Flask](https://img.shields.io/badge/Flask-3.1-000000?style=flat-square&logo=flask&logoColor=white)
-![MITRE ATT&CK](https://img.shields.io/badge/MITRE-ATT%26CK-FF0000?style=flat-square)
-![License](https://img.shields.io/badge/License-Academic-blue?style=flat-square)
-![Status](https://img.shields.io/badge/Status-Active-success?style=flat-square)
-
-</div>
-
----
-
-## Demo
-
-https://github.com/user-attachments/assets/00be01ce-6dfb-43b6-b3f1-19c69b3215dc
-
----
-
-## Overview
-
-**AndroidBehaviorAnalysis** is a runtime audit tool for Android applications. It connects to a running Android device or emulator via ADB, collects behavioral signals in real time, scores anomalies using a weighted feature model mapped to MITRE ATT&CK, and generates AI-powered root cause hypotheses using a local LLM — all without modifying the target app or requiring root access.
-
-It produces structured audit reports comparable to tools like MobSF, Frida, and Drozer, with an added layer of AI-generated SOC-style diagnosis.
-
-> **Academic Project** — École Nationale des Sciences Appliquées de Marrakech (ENSAM)  
-> Module: *Programmation et Sécurité des Applications Mobiles Android*  
-> Supervisor: Prof. Mohamed LACHGAR
-
----
+This platform enables real-time behavioral profiling and AI-powered anomaly detection for Android applications. It connects to a running Android device or emulator via ADB, collects behavioral signals, scores anomalies using a weighted feature model mapped to **MITRE ATT&CK**, and generates AI-powered root cause hypotheses using a local LLM — all without modifying the target app or requiring root access.
 
 ## Table of Contents
 
-- [Architecture](#architecture)
+- [Software Architecture](#software-architecture)
 - [Features](#features)
 - [Detection Rules](#detection-rules)
-- [Project Structure](#project-structure)
-- [Requirements](#requirements)
-- [Installation & Setup](#installation--setup)
+- [Frontend](#frontend)
+- [Backend](#backend)
+- [Getting Started](#getting-started)
 - [Android Test App](#android-test-app)
 - [API Reference](#api-reference)
-- [Comparison with Existing Tools](#comparison-with-existing-tools)
-- [Academic Context](#academic-context)
-- [Built With](#built-with)
-- [Team](#team)
+- [Video Demonstration](#video-demonstration)
+- [Contributing](#contributing)
 
----
-
-## Architecture
+## Software Architecture
 
 ```
 ┌─────────────────────────────────┐
@@ -80,11 +45,11 @@ It produces structured audit reports comparable to tools like MobSF, Frida, and 
 └─────────────────────────────────┘
 ```
 
----
+The application architecture uses a **Python/Flask** backend for signal collection, anomaly detection, and LLM orchestration, with a static **HTML/JS** SOC dashboard as the frontend. Communication with the Android device is done via **ADB (Android Debug Bridge)**.
 
 ## Features
 
-### 🔍 Signal Collection
+### Signal Collection
 | Signal | Description |
 |--------|-------------|
 | Request Rate | HTTP requests per minute sampled via logcat |
@@ -94,35 +59,16 @@ It produces structured audit reports comparable to tools like MobSF, Frida, and 
 | Retry Count | Repeated network attempt frequency |
 | Storage Ops | File read/write events on internal storage |
 
-- **Real-time monitoring** — reads ADB logcat dynamically, no polling delay
-- **Hybrid parser** — combines JSON structured logs and regex for unstructured lines
-- **IOC extraction** — endpoint paths captured automatically from runtime log messages
-- **Baseline learning** — learns normal behavior from the first 30 seconds of calm traffic
+### Anomaly Detection
+- Weighted z-score scoring with a dynamic 0–100 risk score per signal window
+- 6 detection rules mapped to MITRE ATT&CK with confidence levels
+- Lifecycle management: incidents transition Open → Active → Closed after 45s inactivity
+- SOC triage workflow: operators can flag Acknowledged / Mitigated / False Positive
 
-### ⚡ Anomaly Detection
-
-- **Weighted z-score scoring** — outputs a dynamic 0–100 risk score per signal window
-- **6 detection rules** mapped to MITRE ATT&CK with confidence levels
-- **Lifecycle management** — incidents transition Open → Active → Closed after 45s inactivity
-- **SOC triage workflow** — operators can flag Acknowledged / Mitigated / False Positive
-
-### 🤖 AI Analysis
-
-- **100% local inference** — powered by phi3 via Ollama, no data ever leaves the machine
-- **Context-aware prompts** — feeds active incidents, MITRE IDs, IOCs, and live signals to the model
-- **Actionable outputs** — root cause hypotheses, MITRE alignment, IOC analysis, remediation steps
-- **Hardware optimized** — tested on NVIDIA RTX 4050 with CUDA, responses under 30 seconds
-
-### 📊 SOC Dashboard
-
-- Live telemetry charts (request rate, error rate, latency, crashes, retries)
-- 10-segment threat gauge with real-time severity indicator
-- Incident timeline with expandable drawers showing telemetry at trigger moment
-- Kill Chain view with quick triage actions
-- Signal Feed with 60-second scrolling history
-- One-click HTML audit report export
-
----
+### AI Analysis
+- 100% local inference powered by **phi3** via Ollama — no data leaves the machine
+- Context-aware prompts feeding active incidents, MITRE IDs, IOCs, and live signals
+- Actionable outputs: root cause hypotheses, MITRE alignment, IOC analysis, remediation steps
 
 ## Detection Rules
 
@@ -135,49 +81,45 @@ It produces structured audit reports comparable to tools like MobSF, Frida, and 
 | Crash Storm | 🟠 High | T1499.004 | Impact | Low |
 | Timeout / Slow Response | 🟡 Medium | T1499 | Impact | Low |
 
----
+## Frontend
 
-## Project Structure
+### Technologies Used
 
-```
-AndroidBehaviorAnalysis/
-│
-├── app/                              # Android Studio test application
-│   └── src/main/java/com/audit/
-│       behaviortestapp/
-│           └── MainActivity.java     # 5 anomaly simulation scenarios
-│
-├── profiler/                         # Python backend + dashboard
-│   ├── main.py                       # Entry point — starts server + checklist
-│   ├── api.py                        # Flask REST API + Ollama orchestration
-│   ├── collector.py                  # ADB logcat reader + signal sampler
-│   ├── detector.py                   # Anomaly scoring + MITRE ATT&CK mapping
-│   └── static/
-│       └── index.html                # SOC-style live web dashboard
-│
-└── README.md
-```
+- HTML
+- CSS
+- JavaScript
+- Chart.js
 
----
+## Backend
 
-## Requirements
+### Technologies Used
 
-### System Requirements
+- Python 3.10+
+- Flask
+- Ollama (phi3 — 3.8B local LLM)
+- ADB (Android Debug Bridge)
 
-| Component | Requirement |
-|-----------|-------------|
-| OS | Windows 10/11 (fully tested), macOS, Linux |
-| Python | 3.10 or later |
-| Android Tools | Android Studio or standalone platform-tools |
-| LLM Engine | Ollama with phi3 model pulled |
+## Backend Project Structure
 
-### Recommended Hardware for Local Inference
+The backend code follows a modular and organized structure, leveraging Flask for a lightweight and efficient API layer.
 
-- Dedicated NVIDIA GPU with CUDA support
-- Tested: Intel Core i9-13900H + NVIDIA RTX 4050 Laptop GPU
-- 16 GB RAM minimum
+### 1. profiler/main.py
 
-### Python Dependencies
+- *Entry Point:* Starts the Flask server and runs the setup checklist on launch.
+
+### 2. profiler/api.py
+
+- *Controller Layer:* Exposes all REST endpoints. Handles requests, coordinates between the collector, detector, and Ollama LLM orchestration.
+
+### 3. profiler/collector.py
+
+- *Signal Collector:* Reads ADB logcat in real time, parses structured and unstructured log lines, extracts IOCs, and maintains a rolling 60-second signal history.
+
+### 4. profiler/detector.py
+
+- *Anomaly Engine:* Applies weighted z-score scoring, evaluates detection rules, manages incident lifecycle, and maps findings to MITRE ATT&CK tactics.
+
+### Dependencies
 
 ```
 flask
@@ -186,65 +128,86 @@ colorama
 requests
 ```
 
----
+Install with:
 
-## Installation & Setup
-
-### Step 1 — Clone the Repository
-
-```bash
-git clone https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis.git
-cd AndroidBehaviorAnalysis
-```
-
-### Step 2 — Configure Python Environment
-
-```bash
-cd profiler
-python -m venv venv
-
-# Windows
-venv\Scripts\activate
-
-# macOS / Linux
-source venv/bin/activate
-
+```sh
 pip install flask flask-cors colorama requests
 ```
 
-### Step 3 — Set Up Ollama & Local Model
+## Getting Started
 
-```bash
-# Download Ollama from https://ollama.com and then:
-ollama pull phi3
+Here are step-by-step instructions to set up and run the project locally:
 
-# Optional: enable GPU acceleration (Windows)
-set OLLAMA_NUM_GPU=999
-ollama serve
-```
+### Prerequisites
 
-### Step 4 — Map Your Android Device
+1. *Git:*
+   - Make sure you have Git installed. If not, download and install it from [git-scm.com](https://git-scm.com/).
 
-```bash
-adb devices
-# Example output: emulator-5556   device
-```
+2. *Python 3.10+:*
+   - Download from [python.org](https://www.python.org/downloads/).
 
-Open `collector.py` and set your device ID:
+3. *Android Debug Bridge (ADB):*
+   - Install [Android Studio](https://developer.android.com/studio) or standalone [platform-tools](https://developer.android.com/tools/releases/platform-tools).
+   - Enable **USB Debugging** on your Android device or start an emulator.
 
-```python
-DEVICE_ID = "emulator-5556"   # match your adb devices output
-```
+4. *Ollama:*
+   - Download from [ollama.com](https://ollama.com) and pull the phi3 model:
+     ```bash
+     ollama pull phi3
+     ```
 
-### Step 5 — Run the Profiler
+### Backend Setup
 
-```bash
-python main.py
-```
+1. *Clone the Project:*
+   ```bash
+   git clone https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis.git
+   cd AndroidBehaviorAnalysis
+   ```
 
-Open `profiler/static/index.html` in your browser to access the live SOC Dashboard.
+2. *Configure Python Environment:*
+   ```bash
+   cd profiler
+   python -m venv venv
 
----
+   # Windows
+   venv\Scripts\activate
+
+   # macOS / Linux
+   source venv/bin/activate
+
+   pip install flask flask-cors colorama requests
+   ```
+
+3. *Set Up Ollama:*
+   ```bash
+   # Optional: enable GPU acceleration (Windows)
+   set OLLAMA_NUM_GPU=999
+   ollama serve
+   ```
+
+4. *Map Your Android Device:*
+   ```bash
+   adb devices
+   # Example output: emulator-5556   device
+   ```
+
+   Open `collector.py` and set your device ID:
+   ```python
+   DEVICE_ID = "emulator-5556"   # match your adb devices output
+   ```
+
+5. *Run the Profiler:*
+   ```bash
+   python main.py
+   ```
+
+   Open `profiler/static/index.html` in your browser to access the live SOC Dashboard.
+
+### Android Test App Setup
+
+1. Open the `app/` folder in **Android Studio**.
+2. Build and deploy **BehaviorTestApp** to your device or emulator.
+3. Always press **Normal Request** first for 30+ seconds to let the baseline calibrate before triggering anomaly scenarios.
 
 ## Android Test App
 
@@ -257,10 +220,6 @@ The `app/` folder contains **BehaviorTestApp** — an intentionally instrumented
 | Request Spam | 6 parallel threads, no throttle | `REQUEST_SPAM` — T1498 |
 | Crash Storm | NullPointerException every 500ms | `CRASH_STORM` — T1499.004 |
 | Slow / Timeout | 10s server delay vs 5s client timeout | `TIMEOUT_PATTERN` — T1499 |
-
-> **Tip:** Always start with **Normal Request** for 30+ seconds to let the baseline calibrate before triggering anomaly scenarios.
-
----
 
 ## API Reference
 
@@ -275,88 +234,20 @@ The `app/` folder contains **BehaviorTestApp** — an intentionally instrumented
 | `POST` | `/api/incidents/:id/triage` | Set status: `acknowledged`, `mitigated`, `false_positive` |
 | `POST` | `/api/analyze` | Trigger on-demand AI root cause analysis via Ollama |
 
-### Example Response — `/api/signals/current`
+## Video Demonstration
 
-```json
-{
-  "request_rate": 4560,
-  "error_rate": 100.0,
-  "avg_latency": 0,
-  "crash_count": 0,
-  "retry_count": 0,
-  "storage_ops": 0,
-  "anomaly_score": 40,
-  "timestamp": "2026-05-18T15:10:00"
-}
-```
+https://github.com/user-attachments/assets/00be01ce-6dfb-43b6-b3f1-19c69b3215dc
 
----
+## Contributing
 
-## Targeting a Custom Application
+We welcome contributions from everyone, and we appreciate your help to make this project even better! If you would like to contribute, please follow these guidelines:
 
-To monitor any third-party app instead of the bundled test app, edit `collector.py`:
+## Contributors
 
-```python
-PACKAGE   = "com.your.target.app"
-DEVICE_ID = "your-device-id"
-```
-
-The anomaly engine and LLM pipeline are fully decoupled from the test app. The system auto-recalibrates its baseline against any application during the first 30 seconds of clean traffic.
-
----
-
-## Comparison with Existing Tools
-
-| Tool | Core Methodology | AndroidBehaviorAnalysis Advantage |
-|------|-----------------|----------------------------------|
-| **MobSF** | Static + dynamic analysis, API security testing | Adds context-aware AI-driven root cause diagnosis |
-| **Frida** | Runtime instrumentation and hooking | Works rootless via ADB — no jailbreak setup required |
-| **Drozer** | Attack surface enumeration and exploitation | Adds continuous behavioral scoring mapped to MITRE |
-| **Manual Logcat** | Raw terminal log streams | Automates scoring, lifecycle management, and AI explanation |
-
----
-
-## Academic Context
-
-This framework maps to the following course modules:
-
-| Module | Topic |
-|--------|-------|
-| Chapter 13 | Observability — signal collection, log parsing, time-series buffers |
-| Chapter 14 | Anomaly Detection — feature scoring, rule evaluation, baseline init |
-| Lab 3 | Dynamic analysis without host instrumentation |
-| Lab 13 | Runtime behavioral profiling architectures |
-
----
-
-## Built With
-
-| Technology | Role |
-|------------|------|
-| [Flask](https://flask.palletsprojects.com/) | Python web micro-framework |
-| [Chart.js](https://www.chartjs.org/) | Real-time telemetry visualization |
-| [Ollama](https://ollama.com/) | Local LLM runtime |
-| [phi3](https://ollama.com/library/phi3) | Microsoft 3.8B language model |
-| [ADB](https://developer.android.com/tools/adb) | Android Debug Bridge |
-| [MITRE ATT&CK](https://attack.mitre.org/matrices/mobile/) | Adversary tactics and techniques knowledge base |
-
----
-
-## Team
-
-| Name | Role |
-|------|------|
-| Zakaria Aouianti | Android App Development |
-| Yasser Chettour | Anomaly Detection Engine |
-| Abdeljalil Fajri | Backend API & Infrastructure |
-| Mohammed Ait Ourajli | Dashboard & AI Integration |
+- Zakaria Aouianti — Android App Development ([GitHub](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis))
+- Yasser Chettour — Anomaly Detection Engine ([GitHub](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis))
+- Abdeljalil Fajri — Backend API & Infrastructure ([GitHub](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis))
+- Mohammed Ait Ourajli — Dashboard & AI Integration ([GitHub](https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis))
+- Mohamed Lachgar — Supervisor ([ResearchGate](https://www.researchgate.net/profile/Mohamed-Lachgar))
 
 > École Nationale des Sciences Appliquées de Marrakech — 2025/2026
-
----
-
-<div align="center">
-
-**AndroidBehaviorAnalysis v1.0** — *Academic Research Project*
-
-</div>
