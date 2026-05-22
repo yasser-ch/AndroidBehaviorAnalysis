@@ -21,7 +21,9 @@ This platform enables real-time behavioral profiling and AI-powered anomaly dete
 
 
 
-The application architecture uses a **Python/Flask** backend for signal collection, anomaly detection, and LLM orchestration, with a static **HTML/JS** SOC dashboard as the frontend. Communication with the Android device is done via **ADB (Android Debug Bridge)**.
+The application architecture uses a **Python/Flask** backend for signal collection, anomaly detection, and LLM orchestration, with a static **HTML/JS** SOC dashboard as the frontend. Communication with the Android device is done via **ADB (Android Debug Bridge)**. All AI inference runs locally via **Ollama (phi3)** — no data leaves the machine.
+
+---
 
 ## Features
 
