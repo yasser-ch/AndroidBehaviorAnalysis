@@ -80,10 +80,10 @@
     /* GLITCH */
     .glitch { position: relative; display: inline-block; }
     .glitch::before,.glitch::after { content: attr(data-text); position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-    .glitch::before { color: #ff004c; animation: glitch-1 5s infinite; clip-path: polygon(0 0,100% 0,100% 35%,0 35%); transform: translateX(-3px); }
-    .glitch::after { color: #00fff9; animation: glitch-2 5s infinite; clip-path: polygon(0 65%,100% 65%,100% 100%,0 100%); transform: translateX(3px); }
+    .glitch::before { color: #ff004c; animation: glitch-1 3s infinite; clip-path: polygon(0 0,100% 0,100% 35%,0 35%); transform: translateX(-3px); }
+    .glitch::after { color: #00fff9; animation: glitch-2 3s infinite; clip-path: polygon(0 65%,100% 65%,100% 100%,0 100%); transform: translateX(3px); }
     @keyframes glitch-1 { 0%,60%,100%{opacity:0} 62%{opacity:1;transform:translateX(-3px) skewX(-5deg)} 65%{opacity:0} 68%{opacity:1;transform:translateX(3px)} 71%{opacity:0} 73%{opacity:1;transform:translateX(-5px) skewX(-8deg)} 76%{opacity:0} }
-@keyframes glitch-2 { 0%,60%,100%{opacity:0} 62%{opacity:1;transform:translateX(3px) skewX(5deg)} 65%{opacity:0} 68%{opacity:1;transform:translateX(-3px)} 71%{opacity:0} 73%{opacity:1;transform:translateX(5px) skewX(8deg)} 76%{opacity:0} }
+    @keyframes glitch-2 { 0%,60%,100%{opacity:0} 62%{opacity:1;transform:translateX(3px) skewX(5deg)} 65%{opacity:0} 68%{opacity:1;transform:translateX(-3px)} 71%{opacity:0} 73%{opacity:1;transform:translateX(5px) skewX(8deg)} 76%{opacity:0} }
 
     h1 { font-family: var(--font-display); font-size: clamp(3rem, 7vw, 6.5rem); font-weight: 800; line-height: 1; letter-spacing: -0.03em; max-width: 900px; }
     h1 em { font-style: normal; color: var(--green); text-shadow: 0 0 30px rgba(0,255,128,0.5); }
