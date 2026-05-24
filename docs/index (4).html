@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dynamic Behavior Profiler — Android Runtime Security</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #050a0e;
+      --surface: #0b1318;
+      --surface2: #101c24;
+      --border: rgba(0,255,128,0.12);
+      --green: #00ff80;
+      --green-glow: rgba(0,255,128,0.15);
+      --amber: #ffb300;
+      --red: #ff4444;
+      --blue: #00b4ff;
+      --text: #e8f5ee;
+      --muted: #5a7a68;
+      --font-mono: 'JetBrains Mono', monospace;
+      --font-display: 'Syne', sans-serif;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: var(--font-mono); overflow-x: hidden; line-height: 1.6; }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(0,0,0,0.03) 2px, rgba(0,0,0,0.03) 4px);
+      pointer-events: none; z-index: 9999;
+    }
+
+    /* SCROLL PROGRESS */
+    #progress-bar {
+      position: fixed; top: 0; left: 0; height: 2px;
+      background: var(--green); z-index: 10000;
+      width: 0%; transition: width 0.1s linear;
+      box-shadow: 0 0 8px var(--green);
+    }
+
+    /* NAV */
+    nav {
+      position: fixed; top: 2px; left: 0; right: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 1rem 3rem;
+      background: rgba(5,10,14,0.85);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+    }
+    .nav-logo {
+      font-family: var(--font-display); font-weight: 800; font-size: 1.05rem;
+      color: var(--green); letter-spacing: -0.02em;
+      display: flex; align-items: center; gap: 0.5rem;
+    }
+    .nav-logo span { color: var(--text); }
+    .nav-links { display: flex; gap: 2rem; list-style: none; }
+    .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; transition: color 0.2s; }
+    .nav-links a:hover { color: var(--green); }
+    .nav-cta { background: transparent; border: 1px solid var(--green); color: var(--green); font-family: var(--font-mono); font-size: 0.75rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.5rem 1.2rem; cursor: pointer; text-decoration: none; transition: background 0.2s, color 0.2s; }
+    .nav-cta:hover { background: var(--green); color: var(--bg); }
+    .hamburger { display: none; flex-direction: column; gap: 5px; cursor: pointer; padding: 4px; }
+    .hamburger span { display: block; width: 22px; height: 2px; background: var(--green); transition: all 0.3s; }
+    .mobile-menu { display: none; position: fixed; top: 60px; left: 0; right: 0; background: rgba(5,10,14,0.97); border-bottom: 1px solid var(--border); padding: 1.5rem 2rem; z-index: 99; flex-direction: column; gap: 1.25rem; }
+    .mobile-menu a { color: var(--muted); text-decoration: none; font-size: 0.85rem; letter-spacing: 0.1em; text-transform: uppercase; transition: color 0.2s; }
+    .mobile-menu a:hover { color: var(--green); }
+    .mobile-menu.open { display: flex; }
+
+    /* HERO */
+    .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 8rem 3rem 4rem; position: relative; overflow: hidden; }
+    .hero-grid { position: absolute; inset: 0; background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%); }
+    .hero-glow { position: absolute; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(0,255,128,0.08) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%, -60%); pointer-events: none; }
+    .hero-tag { font-size: 0.7rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--green); margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.75rem; position: relative; }
+    .hero-tag::before { content: ''; display: block; width: 32px; height: 1px; background: var(--green); }
+    h1 { font-family: var(--font-display); font-size: clamp(3rem, 7vw, 6.5rem); font-weight: 800; line-height: 1; letter-spacing: -0.03em; max-width: 900px; position: relative; }
+    h1 em { font-style: normal; color: var(--green); }
+    .hero-sub { font-size: 0.95rem; color: var(--muted); max-width: 540px; margin-top: 1.5rem; line-height: 1.8; position: relative; }
+    .hero-actions { display: flex; gap: 1rem; margin-top: 2.5rem; flex-wrap: wrap; position: relative; }
+    .btn-primary { background: var(--green); color: var(--bg); font-family: var(--font-mono); font-weight: 700; font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.85rem 2rem; border: none; cursor: pointer; text-decoration: none; display: inline-block; transition: opacity 0.2s, transform 0.2s; }
+    .btn-primary:hover { opacity: 0.85; transform: translateY(-2px); }
+    .btn-secondary { background: transparent; color: var(--text); font-family: var(--font-mono); font-size: 0.8rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.85rem 2rem; border: 1px solid rgba(255,255,255,0.15); cursor: pointer; text-decoration: none; display: inline-block; transition: border-color 0.2s, color 0.2s; }
+    .btn-secondary:hover { border-color: var(--green); color: var(--green); }
+    .hero-stats { display: flex; gap: 3rem; margin-top: 4rem; padding-top: 2rem; border-top: 1px solid var(--border); position: relative; flex-wrap: wrap; }
+    .stat-val { font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: var(--green); }
+    .stat-label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-top: 0.2rem; }
+
+    /* BADGES */
+    .badges { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; position: relative; }
+    .badge { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.3rem 0.75rem; border: 1px solid var(--border); color: var(--muted); display: inline-flex; align-items: center; gap: 0.4rem; }
+    .badge-green { border-color: rgba(0,255,128,0.3); color: var(--green); background: rgba(0,255,128,0.05); }
+    .badge-amber { border-color: rgba(255,179,0,0.3); color: var(--amber); background: rgba(255,179,0,0.05); }
+
+    /* TERMINAL */
+    .terminal-section { padding: 6rem 3rem; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
+    .terminal-wrap { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
+    .terminal-info h2 { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
+    .terminal-info h2 em { font-style: normal; color: var(--green); }
+    .terminal-info p { color: var(--muted); font-size: 0.85rem; margin-top: 1rem; line-height: 1.9; }
+    .terminal-info ul { list-style: none; margin-top: 1.5rem; display: flex; flex-direction: column; gap: 0.6rem; }
+    .terminal-info ul li { font-size: 0.8rem; color: var(--text); display: flex; align-items: flex-start; gap: 0.6rem; }
+    .terminal-info ul li::before { content: '▸'; color: var(--green); flex-shrink: 0; margin-top: 0.05em; }
+    .terminal-box { background: #020609; border: 1px solid var(--border); border-radius: 4px; overflow: hidden; font-size: 0.75rem; }
+    .terminal-header { background: var(--surface2); padding: 0.6rem 1rem; display: flex; align-items: center; gap: 0.5rem; border-bottom: 1px solid var(--border); }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; } .dot-y { background: #ffbd2e; } .dot-g { background: #28c840; }
+    .terminal-title { font-size: 0.65rem; color: var(--muted); margin-left: 0.5rem; letter-spacing: 0.05em; }
+    .terminal-body { padding: 1.25rem; line-height: 2; }
+    .t-prompt { color: var(--green); } .t-cmd { color: var(--text); } .t-comment { color: var(--muted); }
+    .t-output { color: #7ec8a0; } .t-alert { color: var(--amber); } .t-critical { color: var(--red); } .t-info { color: var(--blue); }
+    .t-blank { display: block; height: 0.5em; }
+
+    /* INSTALL BLOCK */
+    .install-block { background: #020609; border: 1px solid var(--border); margin-top: 1.5rem; }
+    .install-header { background: var(--surface2); padding: 0.5rem 1rem; font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+    .copy-btn { background: transparent; border: 1px solid var(--border); color: var(--muted); font-family: var(--font-mono); font-size: 0.6rem; letter-spacing: 0.08em; padding: 0.2rem 0.6rem; cursor: pointer; transition: border-color 0.2s, color 0.2s; }
+    .copy-btn:hover { border-color: var(--green); color: var(--green); }
+    .copy-btn.copied { border-color: var(--green); color: var(--green); }
+    .install-body { padding: 1rem 1.25rem; font-size: 0.75rem; line-height: 1.9; }
+
+    /* SECTION COMMONS */
+    .section-label { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--green); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
+    .section-label::before { content: '//'; color: var(--muted); }
+    h2.section-title { font-family: var(--font-display); font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
+    h2.section-title em { font-style: normal; color: var(--green); }
+    .section-sub { color: var(--muted); font-size: 0.85rem; max-width: 500px; line-height: 1.8; margin-bottom: 3rem; }
+
+    /* ARCHITECTURE */
+    .arch-section { padding: 6rem 3rem; max-width: 1100px; margin: 0 auto; }
+    .arch-layers { display: flex; flex-direction: column; border: 1px solid var(--border); }
+    .arch-layer { border-bottom: 1px solid var(--border); padding: 1.5rem 2rem; display: grid; grid-template-columns: 180px 1fr; gap: 2rem; align-items: start; transition: background 0.2s; }
+    .arch-layer:last-child { border-bottom: none; }
+    .arch-layer:hover { background: var(--green-glow); }
+    .arch-layer-num { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); }
+    .arch-layer-name { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--green); margin-top: 0.25rem; }
+    .arch-layer-desc { font-size: 0.8rem; color: var(--muted); line-height: 1.8; margin-top: 0.25rem; }
+    .arch-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+    .chip { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.6rem; border: 1px solid var(--border); color: var(--muted); }
+    .chip-green { border-color: rgba(0,255,128,0.3); color: var(--green); }
+
+    /* DETECTION */
+    .rules-section { padding: 6rem 3rem; background: var(--surface); border-top: 1px solid var(--border); }
+    .rules-inner { max-width: 1100px; margin: 0 auto; }
+    .rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .rule-card { background: var(--surface); padding: 1.75rem; transition: background 0.2s; position: relative; overflow: hidden; }
+    .rule-card::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; }
+    .rule-card.sev-critical::before { background: var(--red); }
+    .rule-card.sev-high::before { background: var(--amber); }
+    .rule-card.sev-medium::before { background: var(--blue); }
+    .rule-card:hover { background: var(--surface2); }
+    .rule-name { font-family: var(--font-display); font-size: 0.9rem; font-weight: 700; color: var(--text); }
+    .rule-mitre { font-size: 0.65rem; letter-spacing: 0.1em; color: var(--green); margin-top: 0.25rem; }
+    .rule-desc { font-size: 0.75rem; color: var(--muted); margin-top: 0.75rem; line-height: 1.7; }
+    .rule-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 1.25rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+    .sev-badge { font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.2rem 0.6rem; font-weight: 700; }
+    .sev-badge.critical { background: rgba(255,68,68,0.15); color: var(--red); border: 1px solid rgba(255,68,68,0.3); }
+    .sev-badge.high { background: rgba(255,179,0,0.15); color: var(--amber); border: 1px solid rgba(255,179,0,0.3); }
+    .sev-badge.medium { background: rgba(0,180,255,0.1); color: var(--blue); border: 1px solid rgba(0,180,255,0.25); }
+    .rule-tactic { font-size: 0.65rem; color: var(--muted); }
+
+    /* INSTALL SECTION */
+    .install-section { padding: 6rem 3rem; max-width: 1100px; margin: 0 auto; }
+    .steps { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); }
+    .step { display: grid; grid-template-columns: 60px 1fr; border-bottom: 1px solid var(--border); transition: background 0.2s; }
+    .step:last-child { border-bottom: none; }
+    .step:hover { background: var(--green-glow); }
+    .step-num { display: flex; align-items: flex-start; justify-content: center; padding: 1.5rem 0; font-family: var(--font-display); font-size: 1.2rem; font-weight: 800; color: var(--border); border-right: 1px solid var(--border); }
+    .step-content { padding: 1.25rem 1.5rem; }
+    .step-title { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; color: var(--text); margin-bottom: 0.5rem; }
+    .step-desc { font-size: 0.78rem; color: var(--muted); line-height: 1.8; }
+    .code-line { display: flex; align-items: center; justify-content: space-between; background: #020609; border: 1px solid var(--border); padding: 0.6rem 1rem; margin-top: 0.75rem; font-size: 0.72rem; }
+    .code-line code { color: var(--green); }
+    .code-line .copy-btn { flex-shrink: 0; }
+
+    /* VIDEO */
+    .video-section { padding: 6rem 3rem; background: var(--surface); border-top: 1px solid var(--border); }
+    .video-inner { max-width: 1100px; margin: 0 auto; }
+    .video-embed-wrap { position: relative; border: 1px solid var(--border); margin-top: 2rem; overflow: hidden; aspect-ratio: 16/9; }
+    .video-embed-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: none; }
+    .timeline { border: 1px solid var(--border); border-top: none; background: var(--surface); padding: 1.5rem 2rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; }
+    .tl-item { display: flex; gap: 0.75rem; align-items: flex-start; }
+    .tl-time { font-size: 0.65rem; color: var(--green); flex-shrink: 0; padding-top: 0.15rem; }
+    .tl-text { font-size: 0.75rem; color: var(--muted); line-height: 1.6; }
+
+    /* API */
+    .api-section { padding: 6rem 3rem; max-width: 1100px; margin: 0 auto; }
+    .api-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; border: 1px solid var(--border); }
+    .api-table th { background: var(--surface2); padding: 0.75rem 1.25rem; text-align: left; font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .api-table td { padding: 0.85rem 1.25rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .api-table tr:last-child td { border-bottom: none; }
+    .api-table tr:hover td { background: var(--green-glow); }
+    .method-get { font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; background: rgba(0,180,255,0.1); color: var(--blue); border: 1px solid rgba(0,180,255,0.25); }
+    .method-post { font-size: 0.65rem; font-weight: 700; padding: 0.2rem 0.5rem; background: rgba(0,255,128,0.1); color: var(--green); border: 1px solid rgba(0,255,128,0.25); }
+    .api-path { color: var(--text); font-family: var(--font-mono); }
+    .api-desc { color: var(--muted); }
+
+    /* RESEARCH */
+    .research-section { padding: 6rem 3rem; background: var(--surface); border-top: 1px solid var(--border); }
+    .research-inner { max-width: 1100px; margin: 0 auto; }
+    .research-card { border: 1px solid rgba(0,255,128,0.2); padding: 2rem 2.5rem; display: grid; grid-template-columns: 1fr auto; gap: 2rem; align-items: center; background: rgba(0,255,128,0.03); transition: background 0.2s; }
+    .research-card:hover { background: rgba(0,255,128,0.06); }
+    .research-label { font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--green); margin-bottom: 0.5rem; }
+    .research-title { font-family: var(--font-display); font-size: 1.1rem; font-weight: 700; color: var(--text); line-height: 1.3; }
+    .research-authors { font-size: 0.72rem; color: var(--muted); margin-top: 0.5rem; }
+    .research-meta { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
+    .research-tag { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.6rem; border: 1px solid var(--border); color: var(--muted); }
+
+    /* TEAM */
+    .team-section { padding: 6rem 3rem; border-top: 1px solid var(--border); }
+    .team-inner { max-width: 1100px; margin: 0 auto; }
+    .team-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 2rem; margin-bottom: 3rem; }
+    .university-logo { height: 80px; mix-blend-mode: lighten; opacity: 0.85; filter: brightness(1.2); }
+    .team-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .team-card { background: var(--bg); padding: 1.75rem; transition: background 0.2s; }
+    .team-card:hover { background: var(--surface2); }
+    .team-role { font-size: 0.6rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--green); margin-bottom: 0.5rem; }
+    .team-name { font-family: var(--font-display); font-size: 0.95rem; font-weight: 700; color: var(--text); }
+    .team-desc { font-size: 0.72rem; color: var(--muted); margin-top: 0.5rem; line-height: 1.6; }
+    .team-link { display: inline-block; margin-top: 1rem; font-size: 0.65rem; color: var(--green); text-decoration: none; letter-spacing: 0.08em; border-bottom: 1px solid rgba(0,255,128,0.3); transition: border-color 0.2s; }
+    .team-link:hover { border-color: var(--green); }
+    .supervisor-card { background: var(--bg); padding: 1.75rem; }
+    .supervisor-card:hover { background: var(--surface2); }
+
+    /* FOOTER */
+    footer { border-top: 1px solid var(--border); padding: 3rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+    .footer-left { font-size: 0.72rem; color: var(--muted); line-height: 1.8; }
+    .footer-left strong { color: var(--text); }
+    .footer-right { display: flex; gap: 1rem; flex-wrap: wrap; }
+    .footer-badge { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.35rem 0.8rem; border: 1px solid var(--border); color: var(--muted); text-decoration: none; transition: border-color 0.2s, color 0.2s; }
+    .footer-badge:hover { border-color: var(--green); color: var(--green); }
+
+    /* PULSE DOT */
+    .pulse-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); position: relative; }
+    .pulse-dot::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; background: var(--green); opacity: 0.3; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(1.8); opacity: 0; } }
+
+    /* FADE IN */
+    .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
+    .fade-in.visible { opacity: 1; transform: none; }
+
+    /* COUNTER */
+    .count-up { display: inline-block; }
+
+    /* RESPONSIVE */
+    @media (max-width: 768px) {
+      nav { padding: 1rem 1.5rem; }
+      .nav-links { display: none; }
+      .hamburger { display: flex; }
+      .hero { padding: 6rem 1.5rem 3rem; }
+      .terminal-wrap { grid-template-columns: 1fr; }
+      .arch-layer { grid-template-columns: 1fr; }
+      .research-card { grid-template-columns: 1fr; }
+      .terminal-section, .rules-section, .team-section, .research-section, .video-section { padding: 4rem 1.5rem; }
+      .arch-section, .api-section, .install-section { padding: 4rem 1.5rem; }
+      footer { padding: 2rem 1.5rem; flex-direction: column; }
+      .team-header { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+
+<div id="progress-bar"></div>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <span class="pulse-dot"></span>
+    DBP<span>/ Android Profiler</span>
+  </div>
+  <ul class="nav-links">
+    <li><a href="#overview">Overview</a></li>
+    <li><a href="#architecture">Architecture</a></li>
+    <li><a href="#detection">Detection</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="#demo">Demo</a></li>
+    <li><a href="#team">Team</a></li>
+  </ul>
+  <a class="nav-cta" href="https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis" target="_blank">GitHub ↗</a>
+  <div class="hamburger" id="hamburger">
+    <span></span><span></span><span></span>
+  </div>
+</nav>
+
+<div class="mobile-menu" id="mobile-menu">
+  <a href="#overview" onclick="closeMobileMenu()">Overview</a>
+  <a href="#architecture" onclick="closeMobileMenu()">Architecture</a>
+  <a href="#detection" onclick="closeMobileMenu()">Detection</a>
+  <a href="#install" onclick="closeMobileMenu()">Install</a>
+  <a href="#demo" onclick="closeMobileMenu()">Demo</a>
+  <a href="#team" onclick="closeMobileMenu()">Team</a>
+  <a href="https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis" target="_blank">GitHub ↗</a>
+</div>
+
+<!-- HERO -->
+<section class="hero" id="overview">
+  <div class="hero-grid"></div>
+  <div class="hero-glow"></div>
+  <p class="hero-tag fade-in">Android Runtime Security · MITRE ATT&CK · v1.0.0</p>
+  <h1 class="fade-in"><em>Dynamic</em><br>Behavior<br>Profiler</h1>
+  <p class="hero-sub fade-in">End-to-end behavioral surveillance for Android applications. Collect runtime signals via ADB, detect anomalies with ML, and get AI-powered root-cause analysis — all without touching the app under analysis.</p>
+  <div class="badges fade-in">
+    <span class="badge badge-green">✓ MIT License</span>
+    <span class="badge badge-green">✓ Open Source</span>
+    <span class="badge badge-amber">⚡ v1.0.0</span>
+    <span class="badge">MITRE ATT&CK Mapped</span>
+    <span class="badge">100% Local AI</span>
+  </div>
+  <div class="hero-actions fade-in">
+    <a class="btn-primary" href="https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis" target="_blank">View on GitHub</a>
+    <a class="btn-secondary" href="#demo">Watch Demo ↓</a>
+  </div>
+  <div class="hero-stats fade-in">
+    <div class="stat-item">
+      <div class="stat-val">&lt;3s</div>
+      <div class="stat-label">Detection Latency</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val"><span class="count-up" data-target="0">0</span>%</div>
+      <div class="stat-label">False Positives</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val"><span class="count-up" data-target="6">0</span></div>
+      <div class="stat-label">MITRE ATT&CK Rules</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val">~<span class="count-up" data-target="80">0</span>MB</div>
+      <div class="stat-label">Memory Footprint</div>
+    </div>
+    <div class="stat-item">
+      <div class="stat-val"><span class="count-up" data-target="100">0</span>%</div>
+      <div class="stat-label">Local AI Inference</div>
+    </div>
+  </div>
+</section>
+
+<!-- TERMINAL -->
+<section class="terminal-section">
+  <div class="terminal-wrap">
+    <div class="terminal-info fade-in">
+      <h2>Zero instrumentation.<br><em>Full visibility.</em></h2>
+      <p>Connect to any debuggable Android device or emulator via ADB. No root access, no code injection, no app modification required.</p>
+      <ul>
+        <li>Collects 6 real-time behavioral signals via ADB logcat</li>
+        <li>Weighted z-score scoring with dynamic 0–100 risk scale</li>
+        <li>Incident lifecycle: Open → Active → Closed</li>
+        <li>SOC triage: Acknowledge / Mitigate / False Positive</li>
+        <li>Local LLM (phi3 via Ollama) — no data leaves the machine</li>
+      </ul>
+    </div>
+    <div class="terminal-box fade-in">
+      <div class="terminal-header">
+        <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+        <span class="terminal-title">profiler / main.py — localhost:5000</span>
+      </div>
+      <div class="terminal-body" id="terminal-body">
+        <div><span class="t-comment"># Start the profiler</span></div>
+        <div><span class="t-prompt">$ </span><span class="t-cmd">python main.py</span></div>
+        <span class="t-blank"></span>
+        <div><span class="t-output">✓ ADB device found: emulator-5556</span></div>
+        <div><span class="t-output">✓ Ollama phi3 model ready</span></div>
+        <div><span class="t-output">✓ Flask API running on :5000</span></div>
+        <div><span class="t-info">  Baseline learning phase... 3 min</span></div>
+        <span class="t-blank"></span>
+        <div><span class="t-comment"># Anomaly detected</span></div>
+        <div><span class="t-alert">⚠ RULE TRIGGERED: REQUEST_SPAM</span></div>
+        <div><span class="t-alert">  MITRE: T1498 · Severity: HIGH</span></div>
+        <div><span class="t-alert">  RPM: 4560 · Error rate: 100%</span></div>
+        <div><span class="t-alert">  Anomaly score: 40 / 100</span></div>
+        <span class="t-blank"></span>
+        <div><span class="t-comment"># AI root-cause analysis</span></div>
+        <div><span class="t-output">▸ phi3 → Probable cause: missing</span></div>
+        <div><span class="t-output">  client-side rate limiting or</span></div>
+        <div><span class="t-output">  incorrect retry logic.</span></div>
+        <span class="t-blank"></span>
+        <div><span class="t-critical">● CRITICAL: CRASH_LOOP detected</span></div>
+        <div><span class="t-critical">  MITRE: T1499.004 · NullPtrExc</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ARCHITECTURE -->
+<section class="arch-section" id="architecture">
+  <p class="section-label fade-in">Software Architecture</p>
+  <h2 class="section-title fade-in">Three-tier <em>decoupled</em> design</h2>
+  <p class="section-sub fade-in">High cohesion between signal generation, analysis intelligence, and SOC visualization. Each layer is independently extensible.</p>
+  <div class="arch-layers fade-in">
+    <div class="arch-layer">
+      <div><div class="arch-layer-num">Layer 01</div><div class="arch-layer-name">Generation</div></div>
+      <div>
+        <div class="arch-layer-desc">BehaviorTestApp runs on an Android emulator (Pixel 6 Pro, API 37) and generates five distinct behavioral patterns — from normal HTTP traffic to crash storms and request floods. All telemetry is native, relying on standard Android SDK mechanisms.</div>
+        <div class="arch-chips"><span class="chip chip-green">Java</span><span class="chip chip-green">Android SDK API 37</span><span class="chip">OkHttp</span><span class="chip">Pixel 6 Pro AVD</span></div>
+      </div>
+    </div>
+    <div class="arch-layer">
+      <div><div class="arch-layer-num">Layer 02</div><div class="arch-layer-name">Analysis</div></div>
+      <div>
+        <div class="arch-layer-desc">The Python profiler continuously polls behavioral signals via ADB. The detector applies weighted z-score derivations to identify anomalies, maps findings to MITRE ATT&CK, and orchestrates a local LLM for root-cause generation. A Flask REST API exposes all intelligence.</div>
+        <div class="arch-chips"><span class="chip chip-green">Python 3.10+</span><span class="chip chip-green">Flask 3.1</span><span class="chip">ADB</span><span class="chip">Ollama phi3</span><span class="chip">Z-Score</span></div>
+      </div>
+    </div>
+    <div class="arch-layer">
+      <div><div class="arch-layer-num">Layer 03</div><div class="arch-layer-name">Visualization</div></div>
+      <div>
+        <div class="arch-layer-desc">A responsive single-page SOC dashboard polls the backend every second. Five views provide complete operational coverage: live metrics, raw signal feed, MITRE kill chain with IOCs, AI root-cause analysis, and exportable audit reports.</div>
+        <div class="arch-chips"><span class="chip chip-green">HTML5 / JS</span><span class="chip">Chart.js</span><span class="chip">REST/JSON</span><span class="chip">Server-Sent Events</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- DETECTION -->
+<section class="rules-section" id="detection">
+  <div class="rules-inner">
+    <p class="section-label fade-in">Detection Engine</p>
+    <h2 class="section-title fade-in">MITRE ATT&CK <em>mapped</em> rules</h2>
+    <p class="section-sub fade-in">Six detection rules cover the most critical Android runtime attack patterns, each classified with MITRE tactic, technique, and confidence level.</p>
+    <div class="rules-grid fade-in">
+      <div class="rule-card sev-critical">
+        <div class="rule-name">Data Exfiltration Pattern</div>
+        <div class="rule-mitre">T1048 · Exfiltration</div>
+        <div class="rule-desc">Detects anomalous outbound data transfer patterns consistent with unauthorized data exfiltration attempts from the device.</div>
+        <div class="rule-footer"><span class="sev-badge critical">Critical</span><span class="rule-tactic">Confidence: High</span></div>
+      </div>
+      <div class="rule-card sev-high">
+        <div class="rule-name">Request Spam</div>
+        <div class="rule-mitre">T1498 · Impact</div>
+        <div class="rule-desc">6 parallel threads with no throttle generate high-volume network floods. Detected via RPM spike and error rate correlation.</div>
+        <div class="rule-footer"><span class="sev-badge high">High</span><span class="rule-tactic">Confidence: Low</span></div>
+      </div>
+      <div class="rule-card sev-high">
+        <div class="rule-name">Infinite Retry Loop</div>
+        <div class="rule-mitre">T1071.001 · C2</div>
+        <div class="rule-desc">Continuous retry on 401 without exponential backoff, signaling potential C2 communication or broken authentication logic.</div>
+        <div class="rule-footer"><span class="sev-badge high">High</span><span class="rule-tactic">Confidence: Low</span></div>
+      </div>
+      <div class="rule-card sev-high">
+        <div class="rule-name">Crash Storm</div>
+        <div class="rule-mitre">T1499.004 · Impact</div>
+        <div class="rule-desc">NullPointerException every 500ms creates a cyclic crash pattern. Monitored via per-second crash counter deviation.</div>
+        <div class="rule-footer"><span class="sev-badge high">High</span><span class="rule-tactic">Confidence: Low</span></div>
+      </div>
+      <div class="rule-card sev-high">
+        <div class="rule-name">Silent App Hang</div>
+        <div class="rule-mitre">T1499 · Impact</div>
+        <div class="rule-desc">Application becomes unresponsive without generating explicit errors. Detected through latency spikes with near-zero RPM.</div>
+        <div class="rule-footer"><span class="sev-badge high">High</span><span class="rule-tactic">Confidence: Medium</span></div>
+      </div>
+      <div class="rule-card sev-medium">
+        <div class="rule-name">Timeout / Slow Response</div>
+        <div class="rule-mitre">T1499 · Impact</div>
+        <div class="rule-desc">10s server delay vs 5s client timeout generates persistent timeout patterns, potentially masking network-layer interference.</div>
+        <div class="rule-footer"><span class="sev-badge medium">Medium</span><span class="rule-tactic">Confidence: Low</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- INSTALL -->
+<section class="install-section" id="install">
+  <p class="section-label fade-in">Getting Started</p>
+  <h2 class="section-title fade-in">Up and running <em>in minutes</em></h2>
+  <p class="section-sub fade-in">No complex infrastructure required. Just Python, ADB, and an Android device or emulator.</p>
+  <div class="steps fade-in">
+    <div class="step">
+      <div class="step-num">01</div>
+      <div class="step-content">
+        <div class="step-title">Clone the repository</div>
+        <div class="step-desc">Fork or clone the project to your local machine.</div>
+        <div class="code-line">
+          <code>git clone https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis.git</code>
+          <button class="copy-btn" onclick="copyCode(this, 'git clone https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis.git')">Copy</button>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <div class="step-content">
+        <div class="step-title">Install Python dependencies</div>
+        <div class="step-desc">Navigate to the profiler directory and install requirements.</div>
+        <div class="code-line">
+          <code>cd profiler && pip install flask flask-cors colorama requests</code>
+          <button class="copy-btn" onclick="copyCode(this, 'cd profiler && pip install flask flask-cors colorama requests')">Copy</button>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <div class="step-content">
+        <div class="step-title">Pull the local LLM (Ollama)</div>
+        <div class="step-desc">Download and run phi3 locally via Ollama — no API key, no cloud.</div>
+        <div class="code-line">
+          <code>ollama pull phi3 && ollama serve</code>
+          <button class="copy-btn" onclick="copyCode(this, 'ollama pull phi3 && ollama serve')">Copy</button>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <div class="step-content">
+        <div class="step-title">Connect your Android device</div>
+        <div class="step-desc">Enable USB debugging on your device or start an emulator, then verify ADB can see it.</div>
+        <div class="code-line">
+          <code>adb devices</code>
+          <button class="copy-btn" onclick="copyCode(this, 'adb devices')">Copy</button>
+        </div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">05</div>
+      <div class="step-content">
+        <div class="step-title">Launch the profiler</div>
+        <div class="step-desc">Start the Flask backend. Then open <code style="color:var(--green)">profiler/static/index.html</code> in your browser for the live SOC dashboard.</div>
+        <div class="code-line">
+          <code>python main.py</code>
+          <button class="copy-btn" onclick="copyCode(this, 'python main.py')">Copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- VIDEO -->
+<section class="video-section" id="demo">
+  <div class="video-inner">
+    <p class="section-label fade-in">Video Demonstration</p>
+    <h2 class="section-title fade-in">See it <em>in action</em></h2>
+    <p class="section-sub fade-in">End-to-end walkthrough: baseline calibration, attack simulation, real-time SOC detection, AI root-cause analysis, and audit report export.</p>
+    <div class="video-embed-wrap fade-in">
+      <iframe src="https://www.youtube.com/embed/NQzftC-Sf8Q?autoplay=1&mute=1&loop=1&playlist=NQzftC-Sf8Q" allowfullscreen allow="autoplay; encrypted-media"></iframe>
+    </div>
+    <div class="timeline fade-in">
+      <div class="tl-item"><span class="tl-time">0:00</span><span class="tl-text">Normal Baseline Calibration</span></div>
+      <div class="tl-item"><span class="tl-time">0:14</span><span class="tl-text">Attack Simulation: Request Spam</span></div>
+      <div class="tl-item"><span class="tl-time">1:03</span><span class="tl-text">Real-Time SOC Detection</span></div>
+      <div class="tl-item"><span class="tl-time">1:14</span><span class="tl-text">Incident Mitigation</span></div>
+      <div class="tl-item"><span class="tl-time">1:18</span><span class="tl-text">AI Root Cause Analysis</span></div>
+      <div class="tl-item"><span class="tl-time">1:44</span><span class="tl-text">Chatbot Interaction</span></div>
+      <div class="tl-item"><span class="tl-time">2:40</span><span class="tl-text">Viewing &amp; Exporting Audit Report</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- API -->
+<section class="api-section" id="api">
+  <p class="section-label fade-in">REST API</p>
+  <h2 class="section-title fade-in">OpenAPI 3.0 <em>documented</em></h2>
+  <p class="section-sub fade-in">All profiler data is exposed through a Swagger-documented Flask API, ready for SIEM integration and CI/CD pipelines.</p>
+  <table class="api-table fade-in">
+    <thead><tr><th>Method</th><th>Endpoint</th><th>Description</th></tr></thead>
+    <tbody>
+      <tr><td><span class="method-get">GET</span></td><td class="api-path">/api/status</td><td class="api-desc">Server health, tracking metadata, baseline status</td></tr>
+      <tr><td><span class="method-get">GET</span></td><td class="api-path">/api/signals/current</td><td class="api-desc">Latest 1-second signal snapshot</td></tr>
+      <tr><td><span class="method-get">GET</span></td><td class="api-path">/api/signals/history</td><td class="api-desc">Rolling 60-second telemetry history</td></tr>
+      <tr><td><span class="method-get">GET</span></td><td class="api-path">/api/logs</td><td class="api-desc">Last 50 raw logcat lines</td></tr>
+      <tr><td><span class="method-get">GET</span></td><td class="api-path">/api/incidents</td><td class="api-desc">All detected incidents for the active session</td></tr>
+      <tr><td><span class="method-post">POST</span></td><td class="api-path">/api/analyze</td><td class="api-desc">Trigger on-demand AI root cause analysis via Ollama</td></tr>
+      <tr><td><span class="method-post">POST</span></td><td class="api-path">/api/incidents/:id/triage</td><td class="api-desc">Set status: acknowledged / mitigated / false_positive</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- RESEARCH -->
+<section class="research-section">
+  <div class="research-inner">
+    <p class="section-label fade-in">Published Research</p>
+    <h2 class="section-title fade-in">Read the <em>paper</em></h2>
+    <p class="section-sub fade-in">This project is backed by a peer-reviewed article submitted to the Software Impacts journal.</p>
+    <div class="research-card fade-in">
+      <div>
+        <div class="research-label">Software Impacts · 2025/2026</div>
+        <div class="research-title">Dynamic Behavior Profiler: Runtime Behavioral Monitoring and Anomaly Detection for Android Applications</div>
+        <div class="research-authors">Abdeljalil Fajri, Mohammed Ait Ourajli, Yasser Chettour, Zakaria Aouianti — ENSAM Marrakech, Cadi Ayyad University</div>
+        <div class="research-meta">
+          <span class="research-tag">Android Security</span>
+          <span class="research-tag">Anomaly Detection</span>
+          <span class="research-tag">MITRE ATT&CK</span>
+          <span class="research-tag">Runtime Profiling</span>
+          <span class="research-tag">Flask</span>
+        </div>
+      </div>
+      <div>
+        <a class="btn-primary" href="https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis/blob/main/README.md" target="_blank">Read Docs ↗</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TEAM -->
+<section class="team-section" id="team">
+  <div class="team-inner">
+    <div class="team-header">
+      <div>
+        <p class="section-label fade-in">Contributors</p>
+        <h2 class="section-title fade-in">Built at <em>ENSAM Marrakech</em></h2>
+        <p class="section-sub fade-in" style="margin-bottom:0">Developed within the Android Mobile Application Programming and Security module at École Nationale des Sciences Appliquées de Marrakech, Cadi Ayyad University — 2025/2026.</p>
+      </div>
+      <img src="data:image/png;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/4gHYSUNDX1BST0ZJTEUAAQEAAAHIAAAAAAQwAABtbnRyUkdCIFhZWiAH4AABAAEAAAAAAABhY3NwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAQAA9tYAAQAAAADTLQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAlkZXNjAAAA8AAAACRyWFlaAAABFAAAABRnWFlaAAABKAAAABRiWFlaAAABPAAAABR3dHB0AAABUAAAABRyVFJDAAABZAAAAChnVFJDAAABZAAAAChiVFJDAAABZAAAAChjcHJ0AAABjAAAADxtbHVjAAAAAAAAAAEAAAAMZW5VUwAAAAgAAAAcAHMAUgBHAEJYWVogAAAAAAAAb6IAADj1AAADkFhZWiAAAAAAAABimQAAt4UAABjaWFlaIAAAAAAAACSgAAAPhAAAts9YWVogAAAAAAAA9tYAAQAAAADTLXBhcmEAAAAAAAQAAAACZmYAAPKnAAANWQAAE9AAAApbAAAAAAAAAABtbHVjAAAAAAAAAAEAAAAMZW5VUwAAACAAAAAcAEcAbwBvAGcAbABlACAASQBuAGMALgAgADIAMAAxADb/2wBDAAUDBAQEAwUEBAQFBQUGBwwIBwcHBw8LCwkMEQ8SEhEPERETFhwXExQaFRERGCEYGh0dHx8fExciJCIeJBweHx7/2wBDAQUFBQcGBw4ICA4eFBEUHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh7/wAARCAD+AJkDASIAAhEBAxEB/8QAHAABAAIDAQEBAAAAAAAAAAAAAAYHBAUIAgED/8QAThAAAQMDAQUEBgYGBQgLAAAAAQIDBAAFBhEHEiExQRNRYYEUFSIycZEIQlJyodEjVmKCpMEWJJKisRczNENTdbKzNjdVdIOTo7Th8PH/xAAaAQEAAwEBAQAAAAAAAAAAAAAAAgMFBAEG/8QANBEAAQMCAgYIBgIDAAAAAAAAAQACAwQRITEFEhNBUdEUUmFxgZGh8CIyQrHB4RUzotLx/9oADAMBAAIRAxEAPwDsulKURKUpREpSlESlKURKUpREpSlESlKURKUpREpSlESlKURKUpREpSlESlKURKUpREpSlESlKURKUpREpSlESlKURKUpREpSlESlKURKVpsryix4vC9KvM9uOCPYRrqtf3U9apnK9smR3SFIdxC0rYgtK3HJSk9o4nxKR7oPf+NctRWxQYOOPAZrrp6GaoxaMOJyV8y5UaI0XZchlhsc1OLCR8zUUu207B7aVJev0dxaeaGQVn8OFcnXq/Xm8vqeulzlS1q59o4SPlUh2TZBa7TfhAyGFHmWacQ2+HkBXZHkFj4dfD4Vk/zRe8NaAAd5Wx/BiNhc8kkbgryk7csHaJCFXB0/sx+H+NY6NvOHE+2xcUjv7IH+dRrarsYjNwXr3iAUdxPaOQgd4KTzJbP8vlVGwocqbNahRGHHpLqwhttI1UpR6VXU19bTv1XgdmGaspdH0NQzXYT245LqWHtswSQoBUqWx4usaD8Cak1ozvELtoIN/hLUfqqXuH+9pVb4hsqx7EcfdyPNi3LeYaLrjSuLTXgB9ZWvD41R2Y3v1/kMi5NxWobJO6ww0kJDaB7o4de899XSaQqaZgMwFzu3qiLR1NUvcISbDfuXbaFJWgLQoKSRqCDqDX2uLcazTKrC8n1Vd5SBrwaKitKvDdPOrlxbba9Feag5tanIbq0hQfbTodDyKkHiPyrop9MQy4O+H7ea56jQ08WLPi+/krtpWHaLpb7vCRNtkxmXHXyW2rUefcfjWZWqCCLhZBBBsUpSlerxKUpREpSlESqv2ubWIWKhy1Wjs5l4I0Vx1bj/AHu9Xh861u3Pal6jDuOY+8DclDdkyE8fRwfqj9v/AA+Nc5tSnkTBLUrtXd7eUXPa3u/XXnrWFpHSmzOyiOO88Fv6N0TtAJZhhuHH9LIvl3uV7uDk+6zHZUhw6la1a6eA7hWfguUTsTv7Vzh6LR7shhXuPN9Ukf4d1bsYe3kmPOX/ABJKlux/9PteurjJ+031Ug93McRUHUkpUUqBCgdCCOIrAcJInB98cwV9E0xSsMdsBgRwXR192bYrtDsLWS4o4i3SZKd/RI/RlXVK09Fa91UHkliumO3Vy23eIuPIbPIjgofaSeoqffR+zk43kQs894i13FYSSo8GXTwSrwB5HyPSr/2g4basysq4M9sJfSCY8gD22ld48O8VsdFjr4drHg8ZjcsXpcmj5tlKbsOR3gfpRX6OmWKv+Heq5bu9OtRDRJPFbR9w+WhT5DvqQ2PZ9YLRm0/KYrAEiUkbje6N1lR99SfFXD8e+qO2XouezvbKxZbuktJlkw1n6riV/wCbWnvG8E/jXTcp9qLFdkvrCGmkFa1HokDUn5VoaPcJoQJR8TDbFZukWmCYmI/C8XwVCfSjyxSpEbEIjvsIAkTd081H3EH4D2vNNVdgeFXvMrj6Na2NGUEdtJWNG2x4nqfCpBiuN3Parn9wuLpWxCckKelP6a7iSfZQnvOmg8AK6atkCzYnjvYRWmoVvhtFaz3ADUqJ6nxrOjpXaQmdPJgzd3LSkq26OhbBGLv395VWXizYlsdxYXFMZq5X94dnGXIAJK9OKgOiR+Vc+3WfLulxfuE55T0l9ZW4tXUmt9tMy6VmWUP3N4qTHT+jiNH/AFbYPDzPM1oLZAmXOc1Bt8ZyTJdVuobbGpJrOrJ2yv1IhZoyH5WnRQOiZrym7jmfwtvheX3vErimZaZakJ1/SMqOrbg7iK6g2Z7RbPmsQIaUItyQnV2Is8fFSe8Vzxk+OwsGhNR7k41MyOQgL9HSdW4SDyKvtLPQchz7qiNquM21XFm4W+QuPJZUFNuIOhBq+mrJaF2o7Ebxw/aoqqKGvZrtwO48f0u6qVAtj+0SLmtr7GRuMXeOkduyOAWPtp8O8dKntfVxSsmYHsNwV8jNC+F5Y8WISlKVYqkqA7a85RhuNlERaTdpoKIqfsDq4R4dPGptc5sa226RcJroajR21OOrPRIGprjTaHlErLsplXiRqltStyO0TwbbHuj+Z8SazNKVnR49VvzH3dauiqLpMus75R7svrWM3i82xy+W5frXQlUtDZ1faUeZUnmQe8a61HVpUhRSpJSoHQgjQg1tcTyG54zembra3y282faT9VxPVKh1Bq+Lth+NbWMVRk2Ppbt93UnRwAaJLoHFDgH4K7tK+dhphUtOzPxDdx7l9JNVGlcNoPgO/h3qk9nmUzMQyiNd4pKkJO5Ia14Otn3k/wAx4gVd+0vZpa81tKMqxEtNzZDQeCU8ESQRr5L/APw1z5fbTcLHdHrbdIy48lk6KQofiO8eNXr9FzKy9ElYlLd1UxrIh6n6hPtpHwJB8zXRo9zXk0swwOXYVzaSa5jRVQnEZ9oVBS48iHKcjSWlsvtKKVoWNFJI6GusdhWWHKcIZEl3fuEAiPJ1PFWg9hfmPxBrTbddmreSQV32zMJTeI6dXEJGnpKB0+8Onfyqo9g2SLxraDHjyFFuLcD6JISrhuqJ9gnuIVoPgTV0DX6Oqw13yuwv74KmoezSVIXN+ZuNvfFXptrxBWRY8m5W5vS82o+kRFpHtLCeJR56ajxArLz6dKu+y8m1I1lXthliOnXl2+6D5BClHyqaV+LcWO22y2hlCUMcWkgcEcCOHkSK33U4JcRhrCx5r55lQQGg46puOS1ODY1BxPG4tmgpBDSdXXNOLrh95R+J/DSqw+k/lyoVsj4pCd0dmDtpeh4hoH2U/vEa/BPjVzTJDMSI9LkLDbLLanHFHklIGpPyFcZZJcLlnWdSJbDLj8q4SN2OyniQnkhPkkD8TWfpSYQQCGPM4eC0dEwmeczSZNx8feK1mPWa43+7sWu1x1PynlaJSOQHUk9AO+ujoVmsexvAZN3eS3LvC0BHaqHFx08kJ7kjn8AakWyfAYOFWRKSlDt0fSDKkadfsJ/ZH486pH6R2VqvmZGzx3NYNq1a0B4KePvny93yPfXE2nGj4Ns/5zl2LtdUHSNRsWf1jPtVb3a4S7rcpFxnvKekyFlxxajzJr84UWTNkojRGHH3nDohttJUo+Qre4Dh13zK8CBbW91tPF+Qsew0nvPj3DrV0ZSrHdjWLIjWZhuRkU1BS3IdAKwOrh7gDyHf51nQUjpWmV5s0ZnktOesbE4Qxi7jkOaqIwr5s9ukC6LlNRLslYWIaVby0o049ppwAPLTqDXVeC5LCy3Go15hHQODddb14tOD3kn/AO8iK4tnSpM6W7LlvLffdUVuOLOqlE9SasPYBmZxnLE2+Y9u2y5KDTu8eDbn1F/yPgfCurRtaIZtTJh935rk0nQunh183j3bkuq6UpX1i+QUa2lYzIy3FnbJHuRgdqtKnFhO8FpHHdPhrofKqAyPYhl9sSp2D6PdGx/sTurP7p/OupKVw1Wj4ak6z8130mkZqUarMlwlPhTLfJVGnRnozyToUOoKSPnVgbAcxVjOYNwZTpFtuSgy6CeCHPqL+fA+B8K6RyzE7DlEMxrxb2n+HsuAaOIPeFDiK5q2rbMbnhb5nRVLmWhSvYfA9po68Av86w5qCaheJozcD3it6HSEFewwyCxPvBXxtdwCHmtmUptKWrtHSTGe+1+wrwP4VzLiNzm4ZnUOe+04y9Ak7kloj2t33XE/2Sa6p2TZB/SbAbZcnF70gN9jI7+0R7JJ+OgV51WX0mcISpkZlbmgFpIbuCUjmOSXP5Hy7q7NIU4kYKuHMWPvuXFo2pMb3Uk2RuP14q9GXW3mUPNLC23EhSFDkQeINc8/SOwQ2ycMwtDRRHfcHpiUDTsnOjg7gevj8as7YNe/XezO2qWveehAw3f3Pd/uFFTG8W+JdrXJts5oOxpLZbcSeoIrQmiZXU47RcdhWdBM+gqT2Gx7QtRs3vwyXCLXeCoF15kJf8HE+yv8QT51IaqfYM1Kxy7ZJgk9RK4MhMmMT/rGljTeHhwQfio1bFXUkhkhaXZ5HvGBVNXGI5nBuWY7jiFWX0kL+bPs+XBZc3ZF0dEcac+zHFZ+QCf3q1v0d8BFltQya6M6XGaj+roUOLLR6/eVz+GnjXnLbV/T3bdHtTvt2jHo6HJY6KcWd7c8/YB8EmrhAAAAGgHIVyxw7epdM7JuA/J811yzbClbA3N2J8ch5LS51fG8cxC53pZGsZhRbB+s4eCB5qIrkDE7Fc8wyhq2RN5yRJWVvOq4hCddVLV8/nV2/StvSmLJarC0vQynlSHQPsoGiQfAlRP7tSPYFhQxfFk3Cazu3S4pDju8OLTf1UfzPifCuSriNbWCL6W5+K66OUUVGZvqccPBSjHLLZMExNTEYJYiRGi7JfV7yyBqpaj31yTn2SScryqZeZBUEur0ZbJ/zbY91Py/HWr9+k7kSrZhzFlYc3Xro7ovTn2SNCr5kpHzqC7Idj719bavWSByNblaKZjj2VvjvPcn8TVekWvnkbSwjAZq3RrmQROq5zi7Liquslku96kCPabdImOE6aNIJAPieQ86s7HNg+SzUJdus2NbUniEDVxfnpyNdFWa022zwkQ7ZCZisIGiUtpArNq6DQkTcZDc+QVFRp2VxtELDzKxLLFfhWiJDlSlSnmGUtreUNC4QNN4+JrLpStoCwssMm5ulKUr1eJWPcoUW5QH4E5hD8Z9BQ42sahQNZFK8IBFivQSDcKqtjVvexHMMmwh1xS46C3PglX1mleyT/wA+INWZdIMa522Tb5jYcjyWlNOJPVJGhqLZI0Im1HFbkhOipbMq3vK707naoHzQr51Mq5qaMMa6LcDbwOP5XVVSF72y7yAfEYfi6pT6PLb+O5blWFTFEuR3Evta/WAO6VeYU2auuq5yOD6p2245f2khDN2jvW+SodVpQVI18ToB+7VjVGiZs2GLqkjwzH3Uq5+1eJesAfHI/ZQ/J4PoOe2DJ2U6BwqtcwjqhwEtE/BwAfvVLXnEMsredUEttpKlKPIAcSaxr3EM21vR0gdpoFtE9HEkKQfJQBrzkENdxssu3oVu+lNFhStfdSv2VEeIBNXhpYXEb8fFUFweGg7sPD2VH9lduUxYHb1Jb3Z19kLuL+vNKXDq2j4JRpw+NS6viEpQhKEJCUpGgA5AV9qUbBGwNCjK8yPLjvVG3e2f04+kYqO8O1ttiabLoPundAVu+bi9D4A1eVV5sOglVouuUPD+sX64vSQTz7ILUED4e8fMVYdc1FHZhkObjfl6LprpLvEYyYLc/VU/PsLeebcZbs5HaWfHWWmlIPuuvH2935k6/dA61b6QEpCUgAAaADpUQ2SMpVjcq7EDtbtc5cxw/F1SU+W6lNTCpUsYDS/e7Hl6KNXIXOEe5uHPzKUpSupciUpSiJSlKIlKUoih20NW5fcNUOfroJ+bDoqY1Ddoo1veGf78T/yXamVUR/2P7x9gr5f62dx+5Ud2gRA9Zo80AdpbZ8eak9yUODf/wDTK6kVfnKYblRXYzyd5p1BQsd4I0NfpVgbZxPFVl12hvBKUpU1BK1uVSHIuMXSSzxdahuqbA6qCDoPnpWyr85LDchktPJ3kEgkd+hB/lUXAkEBSaQHAlYuPW5u0WKBamdNyJHbZGnXdSBr+FZ1K+L13Dpz0r0ANFgvCS43KiGxZW9susSjzUwon+2qphUO2J/9Vdg/7uf+NVTGqab+lncPsrqr+9/efulKUq9UJSlKIlKhW1W4X+AnHU46v+tvXUhbPSShEZ90snu3uzA16HQ1KbJcot4tMa5wl78eS2FoJ4Ed4I6EHUEd4oizKVX+cZFcxl1ntlnfLUSLcoqLo6n66nVaJY/s6qV8Ud9TDJLqxY7BPvEni1DYW8QOatBqEjxJ0A+NEWDlVmkXW4WCQw4hCbdcRKdCvrJ7NadB4+0K31RXZddbpccZMe/gJvdvfVFnp/bGikn4FCkHzrBucW43raLcba3f7lbosS1w3kNxXN0FbjskKJ8m0/KohoBJG9SLiQAdynFKiUCTd8fyGDZrtcDc4NyUtuFJcQEutuoQXOzWRwUClKyDz9nxrUYlabxfLU5dnMuvEd5c6YhCELSW0BuS62kbpGhACRwqSirEpUfxG6T35Nwst4LSrlbVN77rQ0S+04klDgHQkpWCO9JrSZTlU6BtEtVvjJCrSxuN3Zf2FyVFEf8Avo4+CxRFO6VotokyTbtn+RXCG6pmTGtcl5lxPNC0tKKSPgQK114uk67XuLjVlfWyptKJF1mIPGO3wKWkn7a/wTqeooil1Kie0AzXrhjNsh3OVb0z7k4087HVurKExH3ANfvNpr9IWKTY01iQvLL4+lpxKy048ClYB13T4HlRFlbPbLIx7DLZZZTiHHojRQtSORO8Tw+db6ovlV9uCLxGxnHmm3LtJaL7rzo1ahsa6dosdSTqEp6kHurHbw+6nR6Tmt8XJ5lSFhDev3ANNKixoY0NGQUnuL3FxzKmFKhWUP5HY9m2RSZdzbkTIkV1cSW23uLKQjUFQHDeB15d1TWpKKUqPbN50q5YXb5s15T0hwOb61czo4oD8AKkNEUVzf8A6S4T/vpz/wBjKrUXa5OYFdZrLMVciFeFKetjCBynKICmfALJCx3aOVIsot0ubesYkx0BTcG6LfkcdN1BiyGwf7S0jzrdvMsvFsutIcLS99BUnXdVoRqO46E/OiKAXezGyY9jsd50PzXshiSJr/V59bmq1fDXgB0AArL2nS3pFxsWPxoUieHpInzWWACr0dghQ11IGhdLQ8QDW6zS3S7izaUxEBRj3aNId1OmjaF6qNebFbpf9K75fJ7YQXS1EhJ110jtp3ifDecWs/AJoij9quUiPtP7Z60TbdFvsQMqMgJAVKYClJ00J4qaKx/4Yr3JvMe0bV7yX40x7tbLA09HZK9NHpfPu51vs9tsu44+VW1IVcoTzc2ECdAXW1BW7r3KG8g+CjXy32+WjP7rd1tbsWTa4TDaieO+25JUoaeAcT86ItRaJT2bXqzZDHjrjWK3KdfjF7g7JfUhTWu6PdSlK3Bx4knppWoxDM7bYMSdRMh3JfZXOajeaj7yFKXNdCQFa6c1AampXaLZMsuUy24bYXZbiFSSnXT0WTqN4AfZXrveCgftV4xSwlGFv2O8x0KRIkzS62TqFNuyXVp/uqBoi+4rCmsTrxkl6S3FkXDswGArUR47SVbgUrqrVa1H72nSoPblzr9h9/ckY3dlu5I65JakISj2G9AmKRqdfZQhtXxJqSy7bkknB5eMPlTr6n0wBOK+LsNSkhTp/bDRUk96hr1qasNNsMoZZQENtpCUJA4JAGgAoigd+u7l82CXu4yEdnKXYpjcpv8A2b6GlodT5LSoV92dsvYvdX8Yukj0l64FVwiTlpAXLJA7VK9PrpPED7BH2TXu+49dDZ89tEFhK414hOvQRvaaSHWVNuI8AVJSv4uKrfZVY13ixIYYeEa4xSl+DI017F9I9k+KTyI6gkUXq1W0UTzfMNFsVGTL9bu9mZCVKb/0GVrqEkHlr156VsoiM1EpoypGPmPvp7UNMPBZRrx3SV6a6cta1uQJvkprEryLMpcuDMVImREOjVG9FfaOhPMBTg8q2MS+3h6Uy07i0tlta0pU4p5JCATxUfhzovFiY4Ep2kZYHf8ASFNwlN68yx2agNPDfDvnUsrQZJY5Mm4xr7Z5CY13ioLQKxq3IaJ1LTg7teII4g1iO5HkLDRQ7hsxySOGjMhCmyfvHTQeVEXzbBr/AJLcm3dNfVr2mv3TXj0jaJ/2dj//AJrlY98g5VfdnOQwrnGht3CdHdREisLJDaSjQJUs8yTqdfGptRFE9kG//k5tPabu/uOb27y17VeulSytBs9t0q04fAt81ARIaC99IOumriiPwIrf0RKUpREpSlEUdzG5zLfcMbZiuBCJt2THfGmu8gtOK0+aRUirRZfYXb4i3Kjz1QZFvmCU04Gwv2ghadCDw5LNY3qjLf1u/gGvyqjWe17sCR4c1fqscxuIB8eSk1KjPqjLf1u/gGvyp6oy39bv4Br8qltHdU+nNebJvXHryUmpUZ9UZb+t38A1+VPVGW/rd/ANflTaO6p9OabJvXHryUmpUZ9UZb+t38A1+VPVGW/rd/ANflTaO6p9OabJvXHryUmpUZ9UZb+t38A1+VPVGW/rd/ANflTaO6p9OabJvXHryXvZlc5l5wO0XS4OByVIY33FAaanUjlUjrVYhZW8dxqDZGnlPIiN9mHFDQq4k/zra17EHCNodnYKMxaZHFuVzZKUpVirSlKURKUqGXzPUQcim2G32K43WbCQ2t5LAAACxqOJ8CKhJI2MXcVZHE6Q2aFK4E6JPaW7DkIfQhxTSlIOoC0nRQ+IIr87Pc4V3hCZb3g8zvqb3gOSkkpUPIg1DrLng/pDb7HNxSfZlXJxzsVubu6pYG8rgP8AHxr3sROuHyfC6S/+aapZUB7w0dt/C3NXPpixhc7DK3jfkp1StC/lVuQzkDjSXnjYkFUpKU8yGyvdT38PxrV4Bmc/K30uLxqVbYC43btSXXUrS6SU6AaeBJ8qs28esG3xKr2EmqXWwCmVKw71colotMq6TnNyNFaU64eugGvzqF2HaUi4SLn6bYpdtj2+2G5KLqgpbjXMEJHLUA8/Cj542ODXHEpHBJI0uaMAp64621u9o4hG+oJTvK03ieg7zWNOucKFOhQpL4bemrUiOk/XUkakfHSoFLzV28R4UoYBeJsdCmpkZwqSAF7uqVD4amsS4ZJGyi5bPrzEZdjtvXR9BbdHtJUltSSKodVt+k8OPED8q9tG/wCoceHAkfZWVLuVviLWiVNjsKba7VYccCSlGu7vHXprw1768G6wPXCrT6Qn0xEb0pTf2W97dCifjr8qgG1jKY1hujzT2NMTgq2b7kl9J3XEdof0IIB6je46V9t8pU3afOlrSEqdxJlxQHIFS1K0/Gjqoa+oOPNG0hMeucrclYFnuUO721q4294PRXtezcHJQBI1HmK9RrhAkrbRHmMOqdSpbYQ4CVJSd1RHeAeFRPYq4hrZLY3XFBKERlqUo8gAtWprU4hmVquOWWu3WvF1woshqR6FOWAkONJO8vcSOIBVoeNSbUjVYXZut62UXUx1pA0YNJ9L8lZdKgKtoUyRlsuwWvFpsxMOYiLIlhxIQ3qRqop56aanx0rbZnmcPG5CIhhyp8tUdyUpmOBq2yj3nFE8hUxUxkF18AqzSy6wbbEreO3SC1eWbQ48EzH2VPNNke8hJAUR8NRWZVax7om87SsLuyWi0mdY5D4QTqUhQQrTWt7Ay2QnO5OMXmAIPapLlsfK+ElCToR97mdO6osqWm98r2HkCpvpnC1s7XPmQpbSlK6VyqOZ45f4sa33GwRlTVQ5Yckw0rCVSGShaSkE9QVAjxFQO14HJzLKb1lOTw51mRLLSIkVuSUubqEBJUop79Bp51P82yB3H27OpqOh71hdo8BW8SNwOEgqHiNKiWR7TZVptF8nptjTptl6FtSjePtp3dd741n1Ox17ynAY23ZclpU231LRDE4X3581tbBswx2z3yJeGXbg/JiKUpnt5KlpSSkgnQ+BrT3zZji8EKma3xfpMpIU3Fkr4KcXxVoDwAJ1NZN62lLi2zKLhDhsyGLOYJjqKiO2TICDqe7QK4V+9+2gSbW1liFW9pcqyPxmo7W8f04f03CfmeXdUXdE1bWG/d3/AOp8lJvTNYG53b+7/Yea1Vp2UYnPalOI9ex/07jLgekrSXd07u9z4pPQ91b7GNmVgx67RbjAfuO/GJ7NtcpSkcUke7y60iZNktxzG7Wa3Wy3KjWp5lt9111SVELQFEgeHGtbA2jXFV4CZlqjJtjmQLsbbrbp7QOgndUUnoeFGtpGEHVxvnbgeaOdVvBGthbK+4jkoxkT+ZKt2RYTJtiJBmzVOC5uSUpbaYcWCkqBOoHDQfLjU4yHZlYL/Lal3F2YH0xERVFl8oC0JHIgfE1pbJksvJZtwlvYpBetDxejvvBzedb7DVSA8k9CeWnfSVtCyf1Bjd5h2S3OMXx1qI3vvqBTIcUsBOn2dEjj41UzYWJfdw3XG4Hu7c1Y/b3Ajs077HeR39mSzEbHcZQgIRMvCUpGgAmrAA+dZ8nZjjj+OW+xEzERoDy3mVIfIWFLJJO9z61rJ17y265emxRIEJD9qZYmSkelKSha1o9zUe8kHX46CpNtByORjltgrhRG5Uy4XBmBGQ4rdR2jmuhUR04Gr2sptVztTAYZe96oc+q1mt17k45+9yjb2xrFnkFDsm7OJPAhUxZB/Gt1iOz2xYzLkyoC5i3JMf0dZeeK/Y110GvKtfLzi7W/B7rdrjZUtXWBOEJEcFXZyFlaEhSCeJSd4/KvMzPJzmN4pcLVAjPSr+6lns3VkIbWUkq4juIIrxvRGOuG42vl4L13THt1S64vbPDK6lVnx+BasXbx2KHPQkMqZG8rVW6rXXj5moWjYviaC2UP3RJbBCCJahujuHHhWXE2hOyI1mPq5Db8u9qtEtBXqGlp13ik9eQ+dbXahlTuIY0LnHiJlyHJCGGmVEgKJBJ5eCTU3dGkZrOFw0cMlBnSo5NVpILjxzWhRsaxZtxbiJN2StfFahMWCr4nXjXxexnFVrK1yLqpakbhUZiySn7PPl4V+l32lotSUvzYjaYsuyJuNucCj+ncOmrPx1Unl0NfjM2j3S2+mW252dlu+6RPQIqFHdkl/QEd/sneB+FUkUQwLR5e893FXA1xxDj5+8t/Bbi+bNsfu0a1R3lTGk2uMIsYsvqQoIAA4kc+QrUWrZbjTWRJkFu8l22utOsvPyVFDive9njyBABrZWzOXJO1GThzsRtLLTJ3JKSfbeShta0DwAWflWvse0W4SblFE61R27dMu7lqZeacJWHU66FST0OlTd0QuuRvtlww5KLemNbYE2tfPjjzVkUpStFZihe12HMkWmzS4cR6ULde4s15toarLSCd7QdTx5VBXbPc51nlz3LTKQzcsyYmNsuN+32GoBUpPQc+dXdSuSWkEji4ldkNYYmBoC55cxe9W7DNodo9ClPqEuC1DIQSXWm3QElPfogJ+FSjP7DcpO2G1Jiw3V225KiPTXQklAMdazoo8uI3at6lVDR7A3Vvw9CT+bK06ReXa1uPqAPxdU6xHgQtsV9uF2tN6dccmxlQHozSy1wbAJVoQCNdO/ka1dnxyVBy6Nkj9slPITl8xt1pSFFIbcA7N8J6BKtTvfCr2pXpoWk5775dt14K9wGW4DPssqWbFzezcSbZYZ1rlSDMavTKUH0Z5AQrs3AeRUTpy61+zFruQ2abNoxgyA9FyCG6+32Z3mkBbuqlDoBqKuOleiiAvd2f65Lw1xNrNy/fNU7kseDF2xXK63m03qSwGIqojkFpak9okane0IBHLgale2CHMftlhnQ4j0sWu+xZ77bI1X2SN7eIHU8RU3pVgpQGvbf5jdVmrJcx1vlFvx4Kpslk5Vljdnjt21UFK8hL8Rx5kkCOwjeQp1PTVR5eFaKLHutlseOR5ttmvpsGTSEr9HjlRW0N5QWkfZJUdKvalVuotY6xdj/z8hWNrtVuqGi3/fwVStqs93THx6W9bZLPpOYO3AtqR7TTKwdCvTl/81J9qlsu19yXGbVbUoQ2hUiS8880VtIIb3Ug6dTvK0qw6VJtG0MLL529FF1a4vD7ZX9eSpOPZ58zC9nsafanlybZfkR3wpo+yylaxqf2SEo+VS/MLUZW13CrgIJdbZbmds9uahGjYLep6e0Tp41PaUbRta21+r/jbkvHVjnOvbrf5X5qjbLaskZya1Zc9HV2EnJ5JMfsFds02+C0VqP2AlCeleMbhXWXcbVZUWee2uFlb1zffcZ3WksgnQhR5k1etKrFAB9XvDkrTpAn6fePNKUpWgs5KUpREpSlESlKURKUpREpSlESlKURKUpREpSlESlKURKUpREpSlESlKURKUpREpSlESlKURKUpREpSlESlKURKUpREpSlEX//2Q==" alt="Cadi Ayyad University" class="university-logo fade-in" />
+    </div>
+    <div class="team-grid fade-in">
+      <div class="team-card">
+        <div class="team-role">Android Development</div>
+        <div class="team-name">Zakaria Aouianti</div>
+        <div class="team-desc">BehaviorTestApp — five anomaly simulation scenarios on Android SDK API 37.</div>
+      </div>
+      <div class="team-card">
+        <div class="team-role">Anomaly Detection</div>
+        <div class="team-name">Yasser Chettour</div>
+        <div class="team-desc">Z-score detection engine, MITRE ATT&CK rule mapping, incident lifecycle.</div>
+        <a class="team-link" href="https://github.com/yasser-ch" target="_blank">GitHub ↗</a>
+      </div>
+      <div class="team-card">
+        <div class="team-role">Backend &amp; Infrastructure</div>
+        <div class="team-name">Abdeljalil Fajri</div>
+        <div class="team-desc">Flask REST API, ADB signal collection, OpenAPI documentation, project architecture.</div>
+        <a class="team-link" href="https://github.com/Abdeljalil-Fajri" target="_blank">GitHub ↗</a>
+      </div>
+      <div class="team-card">
+        <div class="team-role">Dashboard &amp; AI</div>
+        <div class="team-name">Mohammed Ait Ourajli</div>
+        <div class="team-desc">SOC web dashboard, Ollama/phi3 LLM integration, AI root-cause analysis UI.</div>
+        <a class="team-link" href="https://github.com/MAITO465" target="_blank">GitHub ↗</a>
+      </div>
+      <div class="team-card supervisor-card">
+        <div class="team-role">Supervisor</div>
+        <div class="team-name">Prof. Mohamed Lachgar</div>
+        <div class="team-desc">Supervision and guidance throughout the project development at ENSAM Marrakech.</div>
+        <a class="team-link" href="https://www.researchgate.net/profile/Mohamed-Lachgar" target="_blank">ResearchGate ↗</a>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-left">
+    <strong>Dynamic Behavior Profiler</strong> · v1.0.0<br>
+    École Nationale des Sciences Appliquées de Marrakech · Cadi Ayyad University<br>
+    MIT License · Open Source
+  </div>
+  <div class="footer-right">
+    <a class="footer-badge" href="https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis" target="_blank">GitHub</a>
+    <a class="footer-badge" href="https://github.com/Abdeljalil-Fajri/AndroidBehaviorAnalysis/blob/main/README.md" target="_blank">Docs</a>
+    <a class="footer-badge" href="https://www.youtube.com/watch?v=NQzftC-Sf8Q" target="_blank">Demo</a>
+    <a class="footer-badge" href="https://attack.mitre.org/matrices/mobile/" target="_blank">MITRE ATT&CK</a>
+  </div>
+</footer>
+
+<script>
+  // Scroll progress bar
+  window.addEventListener('scroll', () => {
+    const doc = document.documentElement;
+    const scrolled = doc.scrollTop / (doc.scrollHeight - doc.clientHeight) * 100;
+    document.getElementById('progress-bar').style.width = scrolled + '%';
+  });
+
+  // Hamburger menu
+  const hamburger = document.getElementById('hamburger');
+  const mobileMenu = document.getElementById('mobile-menu');
+  hamburger.addEventListener('click', () => mobileMenu.classList.toggle('open'));
+  function closeMobileMenu() { mobileMenu.classList.remove('open'); }
+
+  // Fade-in observer
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        const siblings = e.target.parentElement.querySelectorAll('.fade-in');
+        siblings.forEach((s, i) => setTimeout(() => s.classList.add('visible'), i * 80));
+      }
+    });
+  }, { threshold: 0.1 });
+  document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
+
+  // Blinking cursor
+  const cursor = document.createElement('span');
+  cursor.style.cssText = 'display:inline-block;width:8px;height:1em;background:var(--green);vertical-align:middle;animation:blink 1s step-end infinite;margin-left:2px;';
+  document.getElementById('terminal-body').appendChild(cursor);
+  const blinkStyle = document.createElement('style');
+  blinkStyle.textContent = '@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}';
+  document.head.appendChild(blinkStyle);
+
+  // Animated counters
+  function animateCounter(el) {
+    const target = parseInt(el.dataset.target);
+    if (target === 0) { el.textContent = '0'; return; }
+    let start = 0;
+    const duration = 1500;
+    const step = timestamp => {
+      if (!start) start = timestamp;
+      const progress = Math.min((timestamp - start) / duration, 1);
+      el.textContent = Math.floor(progress * target);
+      if (progress < 1) requestAnimationFrame(step);
+      else el.textContent = target;
+    };
+    requestAnimationFrame(step);
+  }
+
+  const statsObserver = new IntersectionObserver((entries) => {
+    entries.forEach(e => {
+      if (e.isIntersecting) {
+        e.target.querySelectorAll('.count-up').forEach(animateCounter);
+        statsObserver.unobserve(e.target);
+      }
+    });
+  }, { threshold: 0.5 });
+  const statsEl = document.querySelector('.hero-stats');
+  if (statsEl) statsObserver.observe(statsEl);
+
+  // Copy to clipboard
+  function copyCode(btn, text) {
+    navigator.clipboard.writeText(text).then(() => {
+      btn.textContent = 'Copied!';
+      btn.classList.add('copied');
+      setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('copied'); }, 2000);
+    });
+  }
+</script>
+</body>
+</html>
