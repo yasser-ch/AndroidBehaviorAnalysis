@@ -696,7 +696,7 @@
         statsObserver.unobserve(e.target);
       }
     });
-  }, { threshold: 0.5 });
+  }, { threshold: 0 });
   const statsEl = document.querySelector('.hero-stats');
   if (statsEl) statsObserver.observe(statsEl);
 
