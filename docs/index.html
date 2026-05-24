@@ -674,10 +674,11 @@
   document.head.appendChild(blinkStyle);
 
 
+
   function animateCounter(el) {
     const target = parseInt(el.dataset.target);
     if (target === 0) { el.textContent = '0'; return; }
-    let start = 0;
+    let start = null;
     const duration = 1500;
     const step = timestamp => {
       if (!start) start = timestamp;
@@ -689,17 +690,9 @@
     requestAnimationFrame(step);
   }
 
-  const statsObserver = new IntersectionObserver((entries) => {
-    entries.forEach(e => {
-      if (e.isIntersecting) {
-        e.target.querySelectorAll('.count-up').forEach(animateCounter);
-        statsObserver.unobserve(e.target);
-      }
-    });
-  }, { threshold: 0 });
-  const statsEl = document.querySelector('.hero-stats');
-  if (statsEl) statsObserver.observe(statsEl);
-
+  window.addEventListener('load', () => {
+    document.querySelectorAll('.count-up').forEach(animateCounter);
+  });
 
   function copyCode(btn, text) {
     navigator.clipboard.writeText(text).then(() => {
