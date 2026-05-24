@@ -31,7 +31,6 @@
       pointer-events: none; z-index: 9999;
     }
 
-    /* SCROLL PROGRESS */
     #progress-bar {
       position: fixed; top: 0; left: 0; height: 2px;
       background: var(--green); z-index: 10000;
@@ -39,7 +38,7 @@
       box-shadow: 0 0 8px var(--green);
     }
 
-    /* NAV */
+ 
     nav {
       position: fixed; top: 2px; left: 0; right: 0; z-index: 100;
       display: flex; align-items: center; justify-content: space-between;
@@ -66,7 +65,7 @@
     .mobile-menu a:hover { color: var(--green); }
     .mobile-menu.open { display: flex; }
 
-    /* HERO */
+
     .hero { min-height: 100vh; display: flex; flex-direction: column; justify-content: center; padding: 8rem 3rem 4rem; position: relative; overflow: hidden; }
     .hero-grid { position: absolute; inset: 0; background-image: linear-gradient(var(--border) 1px, transparent 1px), linear-gradient(90deg, var(--border) 1px, transparent 1px); background-size: 60px 60px; mask-image: radial-gradient(ellipse 80% 80% at 50% 50%, black 30%, transparent 100%); }
     .hero-glow { position: absolute; width: 600px; height: 600px; border-radius: 50%; background: radial-gradient(circle, rgba(0,255,128,0.08) 0%, transparent 70%); top: 50%; left: 50%; transform: translate(-50%, -60%); pointer-events: none; }
@@ -84,13 +83,13 @@
     .stat-val { font-family: var(--font-display); font-size: 2rem; font-weight: 800; color: var(--green); }
     .stat-label { font-size: 0.65rem; letter-spacing: 0.15em; text-transform: uppercase; color: var(--muted); margin-top: 0.2rem; }
 
-    /* BADGES */
+ 
     .badges { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-top: 1.5rem; position: relative; }
     .badge { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.3rem 0.75rem; border: 1px solid var(--border); color: var(--muted); display: inline-flex; align-items: center; gap: 0.4rem; }
     .badge-green { border-color: rgba(0,255,128,0.3); color: var(--green); background: rgba(0,255,128,0.05); }
     .badge-amber { border-color: rgba(255,179,0,0.3); color: var(--amber); background: rgba(255,179,0,0.05); }
 
-    /* TERMINAL */
+  
     .terminal-section { padding: 6rem 3rem; background: var(--surface); border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); }
     .terminal-wrap { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 3rem; align-items: center; }
     .terminal-info h2 { font-family: var(--font-display); font-size: clamp(2rem, 4vw, 3rem); font-weight: 800; line-height: 1.1; letter-spacing: -0.02em; }
@@ -117,14 +116,13 @@
     .copy-btn.copied { border-color: var(--green); color: var(--green); }
     .install-body { padding: 1rem 1.25rem; font-size: 0.75rem; line-height: 1.9; }
 
-    /* SECTION COMMONS */
+  
     .section-label { font-size: 0.65rem; letter-spacing: 0.2em; text-transform: uppercase; color: var(--green); margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.75rem; }
     .section-label::before { content: '//'; color: var(--muted); }
     h2.section-title { font-family: var(--font-display); font-size: clamp(1.8rem, 3.5vw, 2.8rem); font-weight: 800; letter-spacing: -0.02em; margin-bottom: 0.5rem; }
     h2.section-title em { font-style: normal; color: var(--green); }
     .section-sub { color: var(--muted); font-size: 0.85rem; max-width: 500px; line-height: 1.8; margin-bottom: 3rem; }
 
-    /* ARCHITECTURE */
     .arch-section { padding: 6rem 3rem; max-width: 1100px; margin: 0 auto; }
     .arch-layers { display: flex; flex-direction: column; border: 1px solid var(--border); }
     .arch-layer { border-bottom: 1px solid var(--border); padding: 1.5rem 2rem; display: grid; grid-template-columns: 180px 1fr; gap: 2rem; align-items: start; transition: background 0.2s; }
@@ -137,7 +135,7 @@
     .chip { font-size: 0.65rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.6rem; border: 1px solid var(--border); color: var(--muted); }
     .chip-green { border-color: rgba(0,255,128,0.3); color: var(--green); }
 
-    /* DETECTION */
+ 
     .rules-section { padding: 6rem 3rem; background: var(--surface); border-top: 1px solid var(--border); }
     .rules-inner { max-width: 1100px; margin: 0 auto; }
     .rules-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1px; background: var(--border); border: 1px solid var(--border); }
@@ -157,7 +155,7 @@
     .sev-badge.medium { background: rgba(0,180,255,0.1); color: var(--blue); border: 1px solid rgba(0,180,255,0.25); }
     .rule-tactic { font-size: 0.65rem; color: var(--muted); }
 
-    /* INSTALL SECTION */
+ 
     .install-section { padding: 6rem 3rem; max-width: 1100px; margin: 0 auto; }
     .steps { display: flex; flex-direction: column; gap: 0; border: 1px solid var(--border); }
     .step { display: grid; grid-template-columns: 60px 1fr; border-bottom: 1px solid var(--border); transition: background 0.2s; }
@@ -171,7 +169,7 @@
     .code-line code { color: var(--green); }
     .code-line .copy-btn { flex-shrink: 0; }
 
-    /* VIDEO */
+  
     .video-section { padding: 6rem 3rem; background: var(--surface); border-top: 1px solid var(--border); }
     .video-inner { max-width: 1100px; margin: 0 auto; }
     .video-embed-wrap { position: relative; border: 1px solid var(--border); margin-top: 2rem; overflow: hidden; aspect-ratio: 16/9; }
@@ -181,7 +179,7 @@
     .tl-time { font-size: 0.65rem; color: var(--green); flex-shrink: 0; padding-top: 0.15rem; }
     .tl-text { font-size: 0.75rem; color: var(--muted); line-height: 1.6; }
 
-    /* API */
+
     .api-section { padding: 6rem 3rem; max-width: 1100px; margin: 0 auto; }
     .api-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; border: 1px solid var(--border); }
     .api-table th { background: var(--surface2); padding: 0.75rem 1.25rem; text-align: left; font-size: 0.65rem; letter-spacing: 0.12em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--border); }
@@ -193,7 +191,6 @@
     .api-path { color: var(--text); font-family: var(--font-mono); }
     .api-desc { color: var(--muted); }
 
-    /* RESEARCH */
     .research-section { padding: 6rem 3rem; background: var(--surface); border-top: 1px solid var(--border); }
     .research-inner { max-width: 1100px; margin: 0 auto; }
     .research-card { border: 1px solid rgba(0,255,128,0.2); padding: 2rem 2.5rem; display: grid; grid-template-columns: 1fr auto; gap: 2rem; align-items: center; background: rgba(0,255,128,0.03); transition: background 0.2s; }
@@ -204,7 +201,7 @@
     .research-meta { display: flex; gap: 1rem; margin-top: 1rem; flex-wrap: wrap; }
     .research-tag { font-size: 0.6rem; letter-spacing: 0.08em; text-transform: uppercase; padding: 0.2rem 0.6rem; border: 1px solid var(--border); color: var(--muted); }
 
-    /* TEAM */
+    
     .team-section { padding: 6rem 3rem; border-top: 1px solid var(--border); }
     .team-inner { max-width: 1100px; margin: 0 auto; }
     .team-header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 2rem; margin-bottom: 3rem; }
@@ -220,7 +217,7 @@
     .supervisor-card { background: var(--bg); padding: 1.75rem; }
     .supervisor-card:hover { background: var(--surface2); }
 
-    /* FOOTER */
+   
     footer { border-top: 1px solid var(--border); padding: 3rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
     .footer-left { font-size: 0.72rem; color: var(--muted); line-height: 1.8; }
     .footer-left strong { color: var(--text); }
@@ -228,19 +225,19 @@
     .footer-badge { font-size: 0.65rem; letter-spacing: 0.1em; text-transform: uppercase; padding: 0.35rem 0.8rem; border: 1px solid var(--border); color: var(--muted); text-decoration: none; transition: border-color 0.2s, color 0.2s; }
     .footer-badge:hover { border-color: var(--green); color: var(--green); }
 
-    /* PULSE DOT */
+    
     .pulse-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--green); position: relative; }
     .pulse-dot::after { content: ''; position: absolute; inset: -4px; border-radius: 50%; background: var(--green); opacity: 0.3; animation: pulse 2s infinite; }
     @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 0.3; } 50% { transform: scale(1.8); opacity: 0; } }
 
-    /* FADE IN */
+
     .fade-in { opacity: 0; transform: translateY(24px); transition: opacity 0.6s ease, transform 0.6s ease; }
     .fade-in.visible { opacity: 1; transform: none; }
 
-    /* COUNTER */
+   
     .count-up { display: inline-block; }
 
-    /* RESPONSIVE */
+    
     @media (max-width: 768px) {
       nav { padding: 1rem 1.5rem; }
       .nav-links { display: none; }
@@ -260,7 +257,7 @@
 
 <div id="progress-bar"></div>
 
-<!-- NAV -->
+
 <nav>
   <div class="nav-logo">
     <span class="pulse-dot"></span>
@@ -332,7 +329,7 @@
   </div>
 </section>
 
-<!-- TERMINAL -->
+
 <section class="terminal-section">
   <div class="terminal-wrap">
     <div class="terminal-info fade-in">
@@ -378,7 +375,7 @@
   </div>
 </section>
 
-<!-- ARCHITECTURE -->
+
 <section class="arch-section" id="architecture">
   <p class="section-label fade-in">Software Architecture</p>
   <h2 class="section-title fade-in">Three-tier <em>decoupled</em> design</h2>
@@ -408,7 +405,7 @@
   </div>
 </section>
 
-<!-- DETECTION -->
+
 <section class="rules-section" id="detection">
   <div class="rules-inner">
     <p class="section-label fade-in">Detection Engine</p>
@@ -455,7 +452,7 @@
   </div>
 </section>
 
-<!-- INSTALL -->
+
 <section class="install-section" id="install">
   <p class="section-label fade-in">Getting Started</p>
   <h2 class="section-title fade-in">Up and running <em>in minutes</em></h2>
@@ -519,7 +516,7 @@
   </div>
 </section>
 
-<!-- VIDEO -->
+
 <section class="video-section" id="demo">
   <div class="video-inner">
     <p class="section-label fade-in">Video Demonstration</p>
@@ -540,7 +537,7 @@
   </div>
 </section>
 
-<!-- API -->
+
 <section class="api-section" id="api">
   <p class="section-label fade-in">REST API</p>
   <h2 class="section-title fade-in">OpenAPI 3.0 <em>documented</em></h2>
@@ -559,7 +556,7 @@
   </table>
 </section>
 
-<!-- RESEARCH -->
+
 <section class="research-section">
   <div class="research-inner">
     <p class="section-label fade-in">Published Research</p>
@@ -585,7 +582,7 @@
   </div>
 </section>
 
-<!-- TEAM -->
+
 <section class="team-section" id="team">
   <div class="team-inner">
     <div class="team-header">
@@ -630,7 +627,7 @@
   </div>
 </section>
 
-<!-- FOOTER -->
+
 <footer>
   <div class="footer-left">
     <strong>Dynamic Behavior Profiler</strong> · v1.0.0<br>
@@ -646,20 +643,20 @@
 </footer>
 
 <script>
-  // Scroll progress bar
+
   window.addEventListener('scroll', () => {
     const doc = document.documentElement;
     const scrolled = doc.scrollTop / (doc.scrollHeight - doc.clientHeight) * 100;
     document.getElementById('progress-bar').style.width = scrolled + '%';
   });
 
-  // Hamburger menu
+ 
   const hamburger = document.getElementById('hamburger');
   const mobileMenu = document.getElementById('mobile-menu');
   hamburger.addEventListener('click', () => mobileMenu.classList.toggle('open'));
   function closeMobileMenu() { mobileMenu.classList.remove('open'); }
 
-  // Fade-in observer
+  
   const observer = new IntersectionObserver((entries) => {
     entries.forEach(e => {
       if (e.isIntersecting) {
@@ -670,15 +667,14 @@
   }, { threshold: 0.1 });
   document.querySelectorAll('.fade-in').forEach(el => observer.observe(el));
 
-  // Blinking cursor
-  const cursor = document.createElement('span');
+ 
   cursor.style.cssText = 'display:inline-block;width:8px;height:1em;background:var(--green);vertical-align:middle;animation:blink 1s step-end infinite;margin-left:2px;';
   document.getElementById('terminal-body').appendChild(cursor);
   const blinkStyle = document.createElement('style');
   blinkStyle.textContent = '@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}';
   document.head.appendChild(blinkStyle);
 
-  // Animated counters
+
   function animateCounter(el) {
     const target = parseInt(el.dataset.target);
     if (target === 0) { el.textContent = '0'; return; }
@@ -705,7 +701,7 @@
   const statsEl = document.querySelector('.hero-stats');
   if (statsEl) statsObserver.observe(statsEl);
 
-  // Copy to clipboard
+
   function copyCode(btn, text) {
     navigator.clipboard.writeText(text).then(() => {
       btn.textContent = 'Copied!';
